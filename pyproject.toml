@@ -1,0 +1,28 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "photokit"
+authors = [{ name = "Rhet Turnbull", email = "rturnbull+git@gmail.com" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+requires-python = ">=3.9"
+dependencies = [
+    "pyobjc-core>=9.2,<10.0",
+    "pyobjc-framework-AppleScriptKit>=9.2,<10.0",
+    "pyobjc-framework-AppleScriptObjC>=9.2,<10.0",
+    "pyobjc-framework-AVFoundation>=9.2,<10.0",
+    "pyobjc-framework-Cocoa>=9.2,<10.0",
+    "pyobjc-framework-CoreServices>=9.2,<10.0",
+    "pyobjc-framework-Metal>=9.2,<10.0",
+    "pyobjc-framework-Photos>=9.2,<10.0",
+    "pyobjc-framework-Vision>=9.2,<10.0",
+    "pyobjc-framework-Vision>=9.2,<10.0",
+    "wurlitzer>=3.0.3,<4.0.0",
+]
+
+[project.urls]
+Home = "https://github.com/RhetTbull/photokit"
