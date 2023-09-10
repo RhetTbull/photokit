@@ -31,6 +31,17 @@ It is based on work done for [osxphotos](https://github.com/RhetTbull/osxphotos)
 >>> library2 = PhotoLibrary("/Users/user/Pictures/Test2.photoslibrary")
 ```
 
+## Installation
+
+Still a work in progress and not yet ready for normal use. It is not yet hosted on PyPI. If you'd like to experiment with it, you can install it from GitHub:
+
+```bash
+git clone git@github.com:RhetTbull/photokit.git
+cd photokit
+python3 -m pip install flit
+flit install
+```
+
 ## Implementation Notes
 
 PhotoKit is a macOS framework for working with the Photos app.  It is written in Objective-C and is not directly accessible from Python.  This project uses [pyobjc](https://github.com/ronaldoussoren/pyobjc) to provide a Python interface to the PhotoKit framework. It abstracts away the Objective-C implementation details and provides a Pythonic interface to the PhotoKit framework with Python classes to provide access to the user's Photo's library and assets in the library.
@@ -40,7 +51,7 @@ In addition the public PhotoKit API, this project uses private, undocumented API
 ## See Also
 
 - [osxphotos](https://github.com/RhetTbull/osxphotos): Python app to export pictures and associated metadata from Apple Photos on macOS. Also includes a package to provide programmatic access to the Photos library, pictures, and metadata.
-- [PhotoScript](https://github.com/RhetTbull/PhotoScript): Automate Apple / MacOS Photos app with python. Wraps AppleScript calls in python to allow automation of Photos from python code.
+- [PhotoScript](https://github.com/RhetTbull/PhotoScript): Automate macOS Apple Photos app with python. Wraps AppleScript calls in Python to allow automation of Photos from Python code.
 
 ## License
 
