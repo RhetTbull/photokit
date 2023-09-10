@@ -41,4 +41,3 @@ class PhotoKitCreateLibraryError(PhotoKitError):
     """Exception raised if unable to create a PhotoLibrary object"""
 
     pass
-

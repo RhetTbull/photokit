@@ -6,7 +6,7 @@ import fnmatch
 import os
 import pathlib
 import re
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 import Foundation
 
@@ -86,9 +86,9 @@ def list_directory(
 
 
 def increment_filename_with_count(
-    filepath: Union[str, pathlib.Path],
+    filepath: str | pathlib.Path | os.PathLike,
     count: int = 0,
-) -> Tuple[str, int]:
+) -> tuple[str, int]:
     """Return filename (1).ext, etc if filename.ext exists
 
         If file exists in filename's parent folder with same stem as filename,
@@ -116,7 +116,7 @@ def increment_filename_with_count(
     return normalize_fs_path(str(dest)), count
 
 
-def increment_filename(filepath: Union[str, pathlib.Path]) -> str:
+def increment_filename(filepath: str | pathlib.Path | os.PathLike) -> str:
     """Return filename (1).ext, etc if filename.ext exists
 
         If file exists in filename's parent folder with same stem as filename,
@@ -134,7 +134,8 @@ def increment_filename(filepath: Union[str, pathlib.Path]) -> str:
     new_filepath, _ = increment_filename_with_count(filepath)
     return new_filepath
 
-def NSURL_to_path(url):
+
+def NSURL_to_path(url: Foundation.NSURL) -> str:
     """Convert URL string as represented by NSURL to a path string"""
     nsurl = Foundation.NSURL.alloc().initWithString_(
         Foundation.NSString.alloc().initWithString_(str(url))
@@ -144,7 +145,7 @@ def NSURL_to_path(url):
     return path
 
 
-def path_to_NSURL(path):
+def path_to_NSURL(path: str | pathlib.Path | os.PathLike) -> Foundation.NSURL:
     """Convert path string to NSURL"""
     pathstr = Foundation.NSString.alloc().initWithString_(str(path))
     url = Foundation.NSURL.fileURLWithPath_(pathstr)

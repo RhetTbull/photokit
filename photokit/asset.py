@@ -45,13 +45,8 @@ from PyObjCTools import AppHelper
 from wurlitzer import pipes
 
 from .constants import (
-    ACCESS_LEVEL_ADD_ONLY,
-    ACCESS_LEVEL_READ_WRITE,
     MIN_SLEEP,
     PHOTOKIT_NOTIFICATION_FINISHED_REQUEST,
-    PHOTOS_VERSION_CURRENT,
-    PHOTOS_VERSION_ORIGINAL,
-    PHOTOS_VERSION_UNADJUSTED,
     PHAccessLevelAddOnly,
     PHAccessLevelReadWrite,
     PHImageRequestOptionsVersionCurrent,
@@ -318,20 +313,20 @@ class PhotoAsset:
         """True if asset is hidden, otherwise False"""
         return self.phasset.isHidden()
 
-    def metadata(self, version=PHOTOS_VERSION_CURRENT):
+    def metadata(self, version=PHImageRequestOptionsVersionCurrent):
         """Return dict of asset metadata
 
         Args:
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
         """
         imagedata = self._request_image_data(version=version)
         return imagedata.metadata
 
-    def uti(self, version=PHOTOS_VERSION_CURRENT):
+    def uti(self, version=PHImageRequestOptionsVersionCurrent):
         """Return UTI of asset
 
         Args:
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
         """
         imagedata = self._request_image_data(version=version)
         return imagedata.uti
@@ -347,40 +342,40 @@ class PhotoAsset:
                 return resource.uniformTypeIdentifier()
         return None
 
-    def url(self, version=PHOTOS_VERSION_CURRENT):
+    def url(self, version=PHImageRequestOptionsVersionCurrent):
         """Return URL of asset
 
         Args:
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
         """
         imagedata = self._request_image_data(version=version)
         return str(imagedata.info["PHImageFileURLKey"])
 
-    def path(self, version=PHOTOS_VERSION_CURRENT):
+    def path(self, version=PHImageRequestOptionsVersionCurrent):
         """Return path of asset
 
         Args:
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
         """
         imagedata = self._request_image_data(version=version)
         url = imagedata.info["PHImageFileURLKey"]
         return url.fileSystemRepresentation().decode("utf-8")
 
-    def orientation(self, version=PHOTOS_VERSION_CURRENT):
+    def orientation(self, version=PHImageRequestOptionsVersionCurrent):
         """Return orientation of asset
 
         Args:
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
         """
         imagedata = self._request_image_data(version=version)
         return imagedata.orientation
 
     @property
-    def degraded(self, version=PHOTOS_VERSION_CURRENT):
+    def degraded(self, version=PHImageRequestOptionsVersionCurrent):
         """Return True if asset is degraded version
 
         Args:
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
         """
         imagedata = self._request_image_data(version=version)
         return imagedata.info["PHImageResultIsDegradedKey"]
@@ -389,7 +384,7 @@ class PhotoAsset:
         self,
         dest,
         filename=None,
-        version=PHOTOS_VERSION_CURRENT,
+        version=PHImageRequestOptionsVersionCurrent,
         overwrite=False,
         raw=False,
         **kwargs,
@@ -399,7 +394,7 @@ class PhotoAsset:
         Args:
             dest: str, path to destination directory
             filename: str, optional name of exported file; if not provided, defaults to asset's original filename
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
             overwrite: bool, if True, overwrites destination file if it already exists; default is False
             raw: bool, if True, export RAW component of RAW+JPEG pair, default is False
             **kwargs: used only to avoid issues with each asset type having slightly different export arguments
@@ -481,14 +476,14 @@ class PhotoAsset:
 
                 return [str(output_file)]
 
-    def _request_image_data(self, version=PHOTOS_VERSION_ORIGINAL):
+    def _request_image_data(self, version=PHImageRequestOptionsVersionOriginal):
         """Request image data and metadata for self._phasset
 
         Args:
             version: which version to request
-                     PHOTOS_VERSION_ORIGINAL (default), request original highest fidelity version
-                     PHOTOS_VERSION_CURRENT, request current version with all edits
-                     PHOTOS_VERSION_UNADJUSTED, request highest quality unadjusted version
+                     PHImageRequestOptionsVersionOriginal (default), request original highest fidelity version
+                     PHImageRequestOptionsVersionCurrent, request current version with all edits
+                     PHImageRequestOptionsVersionUnadjusted, request highest quality unadjusted version
 
         Returns:
             ImageData instance
@@ -501,9 +496,9 @@ class PhotoAsset:
 
         with objc.autorelease_pool():
             if version not in [
-                PHOTOS_VERSION_CURRENT,
-                PHOTOS_VERSION_ORIGINAL,
-                PHOTOS_VERSION_UNADJUSTED,
+                PHImageRequestOptionsVersionCurrent,
+                PHImageRequestOptionsVersionOriginal,
+                PHImageRequestOptionsVersionUnadjusted,
             ]:
                 raise ValueError("Invalid value for version")
 
@@ -710,7 +705,7 @@ class VideoAsset(PhotoAsset):
         self,
         dest,
         filename=None,
-        version=PHOTOS_VERSION_CURRENT,
+        version=PHImageRequestOptionsVersionCurrent,
         overwrite=False,
         **kwargs,
     ):
@@ -719,7 +714,7 @@ class VideoAsset(PhotoAsset):
         Args:
             dest: str, path to destination directory
             filename: str, optional name of exported file; if not provided, defaults to asset's original filename
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
             overwrite: bool, if True, overwrites destination file if it already exists; default is False
             **kwargs: used only to avoid issues with each asset type having slightly different export arguments
 
@@ -732,7 +727,7 @@ class VideoAsset(PhotoAsset):
 
         with objc.autorelease_pool():
             with pipes() as (out, err):
-                if self.slow_mo and version == PHOTOS_VERSION_CURRENT:
+                if self.slow_mo and version == PHImageRequestOptionsVersionCurrent:
                     return [
                         self._export_slow_mo(
                             dest,
@@ -773,14 +768,18 @@ class VideoAsset(PhotoAsset):
                 return [str(output_file)]
 
     def _export_slow_mo(
-        self, dest, filename=None, version=PHOTOS_VERSION_CURRENT, overwrite=False
+        self,
+        dest,
+        filename=None,
+        version=PHImageRequestOptionsVersionCurrent,
+        overwrite=False,
     ):
         """Export slow-motion video to path
 
         Args:
             dest: str, path to destination directory
             filename: str, optional name of exported file; if not provided, defaults to asset's original filename
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
             overwrite: bool, if True, overwrites destination file if it already exists; default is False
 
         Returns:
@@ -823,23 +822,23 @@ class VideoAsset(PhotoAsset):
             return video
 
     # todo: rewrite this with NotificationCenter and App event loop?
-    def _request_video_data(self, version=PHOTOS_VERSION_ORIGINAL):
+    def _request_video_data(self, version=PHImageRequestOptionsVersionOriginal):
         """Request video data for self._phasset
 
         Args:
             version: which version to request
-                     PHOTOS_VERSION_ORIGINAL (default), request original highest fidelity version
-                     PHOTOS_VERSION_CURRENT, request current version with all edits
-                     PHOTOS_VERSION_UNADJUSTED, request highest quality unadjusted version
+                     PHImageRequestOptionsVersionOriginal (default), request original highest fidelity version
+                     PHImageRequestOptionsVersionCurrent, request current version with all edits
+                     PHImageRequestOptionsVersionUnadjusted, request highest quality unadjusted version
 
         Raises:
             ValueError if passed invalid value for version
         """
         with objc.autorelease_pool():
             if version not in [
-                PHOTOS_VERSION_CURRENT,
-                PHOTOS_VERSION_ORIGINAL,
-                PHOTOS_VERSION_UNADJUSTED,
+                PHImageRequestOptionsVersionCurrent,
+                PHImageRequestOptionsVersionOriginal,
+                PHImageRequestOptionsVersionUnadjusted,
             ]:
                 raise ValueError("Invalid value for version")
 
@@ -888,7 +887,7 @@ class LivePhotoRequest(NSObject):
         self.nc = NSNotificationCenter.defaultCenter()
         return self
 
-    def requestLivePhotoResources(self, version=PHOTOS_VERSION_CURRENT):
+    def requestLivePhotoResources(self, version=PHImageRequestOptionsVersionCurrent):
         """return the photos and video components of a live video as [PHAssetResource]"""
 
         with objc.autorelease_pool():
@@ -955,7 +954,7 @@ class LivePhotoAsset(PhotoAsset):
         self,
         dest,
         filename=None,
-        version=PHOTOS_VERSION_CURRENT,
+        version=PHImageRequestOptionsVersionCurrent,
         overwrite=False,
         photo=True,
         video=True,
@@ -966,7 +965,7 @@ class LivePhotoAsset(PhotoAsset):
         Args:
             dest: str, path to destination directory
             filename: str, optional name of exported file; if not provided, defaults to asset's original filename
-            version: which version of image (PHOTOS_VERSION_ORIGINAL or PHOTOS_VERSION_CURRENT)
+            version: which version of image (PHImageRequestOptionsVersionOriginal or PHImageRequestOptionsVersionCurrent)
             overwrite: bool, if True, overwrites destination file if it already exists; default is False
             photo: bool, if True, export photo component of live photo
             video: bool, if True, export live video component of live photo

@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
+import threading
+from typing import Literal, Union
 
 import objc
 import Photos
 from Foundation import NSURL, NSArray, NSNotificationCenter, NSObject, NSString
+from wurlitzer import pipes
 
 from .asset import LivePhotoAsset, PhotoAsset, VideoAsset
 from .constants import (
-    ACCESS_LEVEL_ADD_ONLY,
-    ACCESS_LEVEL_READ_WRITE,
     MIN_SLEEP,
     PHOTOKIT_NOTIFICATION_FINISHED_REQUEST,
-    PHOTOS_VERSION_CURRENT,
-    PHOTOS_VERSION_ORIGINAL,
-    PHOTOS_VERSION_UNADJUSTED,
     PHAccessLevelAddOnly,
     PHAccessLevelReadWrite,
     PHImageRequestOptionsVersionCurrent,
@@ -33,7 +32,11 @@ from .exceptions import (
     PhotoKitMediaTypeError,
 )
 from .platform import get_macos_version
-from .utils import NSURL_to_path
+from .utils import NSURL_to_path, path_to_NSURL
+
+# global to hold state of single/multi library mode
+# once a multi-library mode API is used, the same process cannot use single-library mode APIs again
+_global_single_library_mode = True
 
 
 class PhotoLibrary:
@@ -61,14 +64,15 @@ class PhotoLibrary:
             raise PhotoKitAuthError(f"Unable to access Photos library: {auth_status}")
 
         # if library_path is None, use default shared library
+        global _global_single_library_mode
         if not library_path:
-            self.single_library_mode = True
+            _global_single_library_mode = True
             self._phimagemanager = Photos.PHCachingImageManager.defaultManager()
             self._phphotolibrary = Photos.PHPhotoLibrary.sharedPhotoLibrary()
         else:
             # undocumented private API to get PHPhotoLibrary for a specific library
-            self.single_library_mode = False
             Photos.PHPhotoLibrary.enableMultiLibraryMode()
+            _global_single_library_mode = False
             self._phphotolibrary = (
                 Photos.PHPhotoLibrary.alloc().initWithPhotoLibraryURL_type_(
                     NSURL.fileURLWithPath_(library_path), 0
@@ -77,7 +81,25 @@ class PhotoLibrary:
             self._phimagemanager = Photos.PHImageManager.alloc().init()
 
     @staticmethod
-    def system_photo_library_path():
+    def enable_multi_library_mode():
+        """Enable multi-library mode.  This is a no-op if already enabled.
+
+        Note:
+            Some PhotoKit APIs only work in multi-library mode.
+            Once enabled, it cannot be disabled and only single-library mode APIs will work.
+            In practice, you should not need to use this and PhotoLibrary will manage this automatically.
+        """
+        Photos.PHPhotoLibrary.enableMultiLibraryMode()
+        global _global_single_library_mode
+        _global_single_library_mode = False
+
+    @staticmethod
+    def multi_library_mode() -> bool:
+        """Return True if multi-library mode is enabled, False otherwise"""
+        return not _global_single_library_mode
+
+    @staticmethod
+    def system_photo_library_path() -> str:
         """Return path to system photo library"""
         return NSURL_to_path(Photos.PHPhotoLibrary.systemPhotoLibraryURL())
 
@@ -110,14 +132,19 @@ class PhotoLibrary:
         )
 
     @staticmethod
-    def request_authorization(access_level: int = PHAccessLevelReadWrite):
+    def request_authorization(
+        access_level: int = PHAccessLevelReadWrite,
+    ):
         """Request authorization to user's Photos Library
+
+        Args:
+            access_level: (int) PHAccessLevelAddOnly or PHAccessLevelReadWrite
 
         Returns: True if authorization granted, False otherwise
 
         Note: In actual practice, the terminal process running the python code
             will do the actual request. This method exists for use in bundled apps
-            created with py2app, etc.
+            created with py2app, etc.  It has not yet been well tested.
         """
 
         def handler(status):
@@ -161,39 +188,86 @@ class PhotoLibrary:
                 return True
         return bool(auth_status)
 
-    def create_library(library_path: str) -> PhotoLibrary:
-        """Create a new Photos library at library_path"""
-        Photos.PHPhotoLibrary.enableMultiLibraryMode()
-        photo_library = Photos.PHPhotoLibrary.alloc().initWithPhotoLibraryURL_type_(
-            NSURL.fileURLWithPath_(library_path), 0
+    def create_library(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+        """Create a new Photos library at library_path
+
+        Args:
+            library_path: str or pathlib.Path, path to new library
+
+        Returns: PhotoLibrary object for new library
+
+        Raises:
+            FileExistsError if library already exists at library_path
+            PhotoKitCreateLibraryError if unable to create library
+
+        Note:
+            This only works in multi-library mode; multi-library mode will be enabled if not already enabled.
+            This may file (after a long timeout) if a library with same name was recently created
+            (even if it has since been deleted).
+        """
+        library_path = (
+            str(library_path) if not isinstance(library_path, str) else library_path
         )
-        if photo_library.createPhotoLibraryUsingOptions_error_(None, None):
-            return PhotoLibrary(library_path)
-        else:
-            raise PhotoKitCreateLibraryError(
-                f"Unable to create library at {library_path}"
+        if pathlib.Path(library_path).is_dir():
+            raise FileExistsError(f"Library already exists at {library_path}")
+
+        # This only works in multi-library mode
+        PhotoLibrary.enable_multi_library_mode()
+
+        # Sometimes this can generate error messages to stderr regarding CoreData XPC errors
+        # I have not yet figured out what causes this
+        # Suppress the errors with pipes() and raise error when it times out
+        # Error appears to occur if a library with same name was recently created (even if it has since been deleted)
+        with pipes() as (out, err):
+            photo_library = Photos.PHPhotoLibrary.alloc().initWithPhotoLibraryURL_type_(
+                NSURL.fileURLWithPath_(library_path), 0
+            )
+            if photo_library.createPhotoLibraryUsingOptions_error_(None, None):
+                return PhotoLibrary(library_path)
+            else:
+                raise PhotoKitCreateLibraryError(
+                    f"Unable to create library at {library_path}"
+                )
+
+    def albums(self, top_level: bool = False):
+        """Return list of albums in the
+
+        Args:
+            top_level_only: if True, return only top level albums
+
+        Returns: list of Album objects
+        """
+        if PhotoLibrary.multi_library_mode():
+            raise NotImplementedError(
+                "albums() only works in single library mode for now"
             )
 
-    def albums(self):
-        """Return list of albums in the library"""
         with objc.autorelease_pool():
             # these are single library mode only
             # this gets all user albums
-            # albums = (
-            #     Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
-            #         Photos.PHAssetCollectionTypeAlbum,
-            #         Photos.PHAssetCollectionSubtypeAny,
-            #         None,
-            #     )
-            # )
-            #
-            # this gets top level albums but also folders (PHCollectionList)
-            albums = Photos.PHCollectionList.fetchTopLevelUserCollectionsWithOptions_(
-                None
-            )
+            if top_level:
+                # this gets top level albums but also folders (PHCollectionList)
+                albums = (
+                    Photos.PHCollectionList.fetchTopLevelUserCollectionsWithOptions_(
+                        None
+                    )
+                )
+            else:
+                albums = Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
+                    Photos.PHAssetCollectionTypeAlbum,
+                    Photos.PHAssetCollectionSubtypeAny,
+                    None,
+                )
+
+            album_list = []
             for i in range(albums.count()):
                 album = albums.objectAtIndex_(i)
-                print(album)
+                # filter out PHCollectionList (folders), PHCloudSharedAlbum (shared albums)
+                if not isinstance(
+                    album, (Photos.PHCollectionList, Photos.PHCloudSharedAlbum)
+                ):
+                    album_list.append(album)
+            print(album_list)
 
     def folders(self):
         """ "Return list of folders in the library"""
@@ -234,7 +308,7 @@ class PhotoLibrary:
         """
 
         with objc.autorelease_pool():
-            if self.single_library_mode:
+            if not PhotoLibrary.multi_library_mode():
                 fetch_options = Photos.PHFetchOptions.alloc().init()
                 fetch_result = Photos.PHAsset.fetchAssetsWithLocalIdentifiers_options_(
                     uuid_list, fetch_options
@@ -278,8 +352,10 @@ class PhotoLibrary:
         try:
             result = self.fetch_uuid_list([uuid])
             return result[0]
-        except:
-            raise PhotoKitFetchFailed(f"Fetch did not return result for uuid {uuid}")
+        except Exception as e:
+            raise PhotoKitFetchFailed(
+                f"Fetch did not return result for uuid {uuid}: {e}"
+            )
 
     def fetch_burst_uuid(self, burstid, all=False):
         """fetch PhotoAssets with burst ID = burstid
@@ -323,33 +399,32 @@ class PhotoLibrary:
                 lambda: Photos.PHAssetChangeRequest.deleteAssets_(assets), None
             )
 
-    def add_photo(self, filepath: str | pathlib.Path) -> PhotoAsset:
+    # // Create an asset representation of the image file
+    # [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+    #     PHAssetCreationRequest *creationRequest = [PHAssetCreationRequest creationRequestForAsset];
+    #     [creationRequest addResourceWithType:PHAssetResourceTypePhoto fileURL:imageURL options:nil];
+
+    #     // Add the asset to the user's Photos library
+    #     PHAssetCollectionChangeRequest *albumChangeRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection:userLibrary];
+    #     [albumChangeRequest addAssets:@[creationRequest.placeholderForCreatedAsset]];
+
+    # } completionHandler:^(BOOL success, NSError *error) {
+    #     if (!success) {
+    #         NSLog(@"Failed to import image into Photos library: %@", error);
+    #     } else {
+    #         NSLog(@"Image imported successfully.");
+    #     }
+    # }];
+
+    def add_photo(self, image_path: str | pathlib.Path | os.PathLike):
         """Add a photo to the Photos library
 
         Args:
-            filepath: str or pathlib.Path, path to image file to add
+            filepath: (str, pathlib.Path, os.PathLike) path to image file to add
 
         Returns:
             PhotoAsset object for added photo
         """
-        # // Create an asset representation of the image file
-        # [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-        #     PHAssetCreationRequest *creationRequest = [PHAssetCreationRequest creationRequestForAsset];
-        #     [creationRequest addResourceWithType:PHAssetResourceTypePhoto fileURL:imageURL options:nil];
-
-        #     // Add the asset to the user's Photos library
-        #     PHAssetCollectionChangeRequest *albumChangeRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection:userLibrary];
-        #     [albumChangeRequest addAssets:@[creationRequest.placeholderForCreatedAsset]];
-
-        # } completionHandler:^(BOOL success, NSError *error) {
-        #     if (!success) {
-        #         NSLog(@"Failed to import image into Photos library: %@", error);
-        #     } else {
-        #         NSLog(@"Image imported successfully.");
-        #     }
-        # }];
-
-    def add_photo(self, image_path: str | pathlib.Path):
         if not pathlib.Path(image_path).is_file():
             raise FileNotFoundError(f"Could not find image file {image_path}")
 
@@ -405,7 +480,7 @@ class PhotoLibrary:
 
     def _default_album(self):
         # Fetch the default Photos album
-        if self.single_library_mode:
+        if not PhotoLibrary.multi_library_mode():
             smart_albums = (
                 Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
                     Photos.PHAssetCollectionTypeSmartAlbum,

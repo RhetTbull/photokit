@@ -4,19 +4,14 @@ from __future__ import annotations
 
 import Photos
 
-# which version to export, use either PHOTOS_VERSION_X or the longer PhotoKit name
-PHOTOS_VERSION_ORIGINAL = (
-    PHImageRequestOptionsVersionOriginal
-) = Photos.PHImageRequestOptionsVersionOriginal
-PHOTOS_VERSION_UNADJUSTED = (
-    PHImageRequestOptionsVersionUnadjusted
-) = Photos.PHImageRequestOptionsVersionUnadjusted
-PHOTOS_VERSION_CURRENT = (
-    PHImageRequestOptionsVersionCurrent
-) = Photos.PHImageRequestOptionsVersionCurrent
+# which version to export
+PHImageRequestOptionsVersionOriginal = Photos.PHImageRequestOptionsVersionOriginal
+PHImageRequestOptionsVersionUnadjusted = Photos.PHImageRequestOptionsVersionUnadjusted
+PHImageRequestOptionsVersionCurrent = Photos.PHImageRequestOptionsVersionCurrent
 
-ACCESS_LEVEL_ADD_ONLY = PHAccessLevelAddOnly = Photos.PHAccessLevelAddOnly
-ACCESS_LEVEL_READ_WRITE = PHAccessLevelReadWrite = Photos.PHAccessLevelReadWrite
+# access level
+PHAccessLevelAddOnly = Photos.PHAccessLevelAddOnly
+PHAccessLevelReadWrite = Photos.PHAccessLevelReadWrite
 
 # notification that gets sent to Notification Center
 PHOTOKIT_NOTIFICATION_FINISHED_REQUEST = "PyPhotoKitNotificationFinishedRequest"
