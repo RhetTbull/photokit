@@ -8,6 +8,8 @@ import pathlib
 import re
 from typing import List, Optional, Tuple, Union
 
+import Foundation
+
 from .unicode import normalize_fs_path
 
 
@@ -131,3 +133,20 @@ def increment_filename(filepath: Union[str, pathlib.Path]) -> str:
     """
     new_filepath, _ = increment_filename_with_count(filepath)
     return new_filepath
+
+def NSURL_to_path(url):
+    """Convert URL string as represented by NSURL to a path string"""
+    nsurl = Foundation.NSURL.alloc().initWithString_(
+        Foundation.NSString.alloc().initWithString_(str(url))
+    )
+    path = nsurl.fileSystemRepresentation().decode("utf-8")
+    nsurl.dealloc()
+    return path
+
+
+def path_to_NSURL(path):
+    """Convert path string to NSURL"""
+    pathstr = Foundation.NSString.alloc().initWithString_(str(path))
+    url = Foundation.NSURL.fileURLWithPath_(pathstr)
+    pathstr.dealloc()
+    return url

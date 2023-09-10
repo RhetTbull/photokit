@@ -44,7 +44,7 @@ from wurlitzer import pipes
 
 from .fileutil import FileUtil
 from .uti import get_preferred_uti_extension
-from .utils import increment_filename
+from .utils import NSURL_to_path, increment_filename, path_to_NSURL
 
 __all__ = [
     "NSURL_to_path",
@@ -98,23 +98,6 @@ PHOTOKIT_NOTIFICATION_FINISHED_REQUEST = "PyPhotoKitNotificationFinishedRequest"
 MIN_SLEEP = 0.015
 
 
-### utility functions
-def NSURL_to_path(url):
-    """Convert URL string as represented by NSURL to a path string"""
-    nsurl = Foundation.NSURL.alloc().initWithString_(
-        Foundation.NSString.alloc().initWithString_(str(url))
-    )
-    path = nsurl.fileSystemRepresentation().decode("utf-8")
-    nsurl.dealloc()
-    return path
-
-
-def path_to_NSURL(path):
-    """Convert path string to NSURL"""
-    pathstr = Foundation.NSString.alloc().initWithString_(str(path))
-    url = Foundation.NSURL.fileURLWithPath_(pathstr)
-    pathstr.dealloc()
-    return url
 
 
 ### exceptions

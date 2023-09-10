@@ -24,5 +24,8 @@ dependencies = [
     "wurlitzer>=3.0.3,<4.0.0",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=7.4.2", "pytest-cov", "osxphotos>=0.63.0"]
+
 [project.urls]
 Home = "https://github.com/RhetTbull/photokit"
