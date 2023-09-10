@@ -2,7 +2,7 @@
 
 __version__ = "0.1.0"
 
-from .photokit import (
+from .asset import (
     LivePhotoAsset,
     PhotoAsset,
     PhotoKitAuthError,
@@ -12,9 +12,9 @@ from .photokit import (
     PhotoKitFetchFailed,
     PhotoKitImportError,
     PhotoKitMediaTypeError,
-    PhotoLibrary,
     VideoAsset,
 )
+from .photolibrary import PhotoLibrary
 
 __all__ = [
     "PhotoLibrary",
