@@ -48,6 +48,8 @@ PhotoKit is a macOS framework for working with the Photos app.  It is written in
 
 In addition the public PhotoKit API, this project uses private, undocumented APIs to allow access to arbitrary Photos libraries, creating new Photos libraries, etc. The public PhotoKit API only allows access to the user's default Photos library (the so called "System Library").
 
+A number of methods allow retrieval of assets of via a local identifier or [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier). Photos uses a local identifier to identify assets, albums, etc. within a single Photos library. The local identifier is specific to a given instance of the Photos library. The same asset in a different instance of the Photos library will have a different local identifier. This library uses the term "UUID" interchangeably with local identifier. A UUID is a string of hexadecimal digits that takes the form: `61A4B877-5EAC-4710-AA77-6D387629D9A5`. A local identifier returned by the native PhotoKit interface includes additional digits in the form `61A4B877-5EAC-4710-AA77-6D387629D9A5/L0/001`. For any method in this library that accepts a UUID, you may pass either the full local identifier or just the UUID portion. The library will automatically strip off the additional digits.
+
 ## See Also
 
 - [osxphotos](https://github.com/RhetTbull/osxphotos): Python app to export pictures and associated metadata from Apple Photos on macOS. Also includes a package to provide programmatic access to the Photos library, pictures, and metadata.
@@ -73,6 +75,7 @@ This project is licensed under the terms of the MIT license.
 #### Methods
 
 - [x] assets()
+- [x] asset()
 - [ ] albums() *Done for single library mode, need to implement for multi-library mode*
 - [ ] smart_albums() (or method for each smart album, e.g. "recents()", "hidden()", etc.)?
 - [ ] moments()

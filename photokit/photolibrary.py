@@ -236,16 +236,22 @@ class PhotoLibrary:
                     f"Unable to create library at {library_path}"
                 )
 
-    def assets(self) -> list[Asset]:
-        """Return list of all assets in the library.
+    def assets(self, uuids: list[str] | None = None) -> list[Asset]:
+        """Return list of all assets in the library or subset filtered by UUID.
+
+        Args:
+            uuids: (list[str]) UUID of image assets to fetch; if None, fetch all assets
 
         Returns: list of Asset objects
 
         Note: Does not currently return assets that are hidden or in trash nor non-selected burst assets
         """
+        if uuids:
+            return self._assets_from_uuid_list(uuids)
+
         if PhotoLibrary.multi_library_mode():
             asset_uuids = self._photosdb.get_asset_uuids()
-            return self.fetch_uuid_list(asset_uuids)
+            return self._assets_from_uuid_list(asset_uuids)
 
         with objc.autorelease_pool():
             options = Photos.PHFetchOptions.alloc().init()
@@ -254,9 +260,7 @@ class PhotoLibrary:
             # must be turned off
             # print(options.includeHiddenAssets())
             assets = Photos.PHAsset.fetchAssetsWithOptions_(options)
-            asset_list = []
-            for idx in range(assets.count()):
-                asset_list.append(assets.objectAtIndex_(idx))
+            asset_list = [assets.objectAtIndex_(idx) for idx in range(assets.count())]
             return [self._asset_factory(asset) for asset in asset_list]
 
     def albums(self, top_level: bool = False) -> list[Album]:
@@ -324,14 +328,13 @@ class PhotoLibrary:
                 folder = folders.objectAtIndex_(i)
                 print(folder)
 
-    def fetch_uuid_list(self, uuid_list):
-        """fetch PHAssets with uuids in uuid_list
+    def _assets_from_uuid_list(self, uuids: list[str]) -> list[Asset]:
+        """Get assets from list of uuids
 
         Args:
-            uuid_list: list of str (UUID of image assets to fetch)
+            uuids: list of str (UUID of image assets to fetch)
 
-        Returns:
-            list of PhotoAsset objects
+        Returns: list of PhotoAsset objects
 
         Raises:
             PhotoKitFetchFailed if fetch failed
@@ -341,7 +344,7 @@ class PhotoLibrary:
             if not PhotoLibrary.multi_library_mode():
                 fetch_options = Photos.PHFetchOptions.alloc().init()
                 fetch_result = Photos.PHAsset.fetchAssetsWithLocalIdentifiers_options_(
-                    uuid_list, fetch_options
+                    uuids, fetch_options
                 )
                 if fetch_result and fetch_result.count() >= 1:
                     return [
@@ -350,13 +353,13 @@ class PhotoLibrary:
                     ]
                 else:
                     raise PhotoKitFetchFailed(
-                        f"Fetch did not return result for uuid_list {uuid_list}"
+                        f"Fetch did not return result for uuid_list {uuids}"
                     )
 
             # multi-library mode
             fetch_object = NSString.stringWithString_("Asset")
             if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                uuid_list, fetch_object
+                uuids, fetch_object
             ):
                 return [
                     self._asset_factory(fetch_result.objectAtIndex_(idx))
@@ -364,11 +367,11 @@ class PhotoLibrary:
                 ]
             else:
                 raise PhotoKitFetchFailed(
-                    f"Fetch did not return result for uuid_list {uuid_list}"
+                    f"Fetch did not return result for uuid_list {uuids}"
                 )
 
-    def fetch_uuid(self, uuid):
-        """fetch PHAsset with uuid = uuid
+    def asset(self, uuid: str) -> Asset:
+        """Return Asset with uuid = uuid
 
         Args:
             uuid: str; UUID of image asset to fetch
@@ -378,9 +381,12 @@ class PhotoLibrary:
 
         Raises:
             PhotoKitFetchFailed if fetch failed
+
+        Note:
+            uuid may be a UUID or the full local identifier of the requested asset
         """
         try:
-            result = self.fetch_uuid_list([uuid])
+            result = self._assets_from_uuid_list([uuid])
             return result[0]
         except Exception as e:
             raise PhotoKitFetchFailed(

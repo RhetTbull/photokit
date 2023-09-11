@@ -149,7 +149,12 @@ class PhotoAsset(Asset):
 
     @property
     def uuid(self):
-        """Return local identifier (UUID) of PHAsset"""
+        """Return UUID of PHAsset. This is the same as the local identifier minus the added path component."""
+        return self._phasset.localIdentifier().split("/")[0]
+
+    @property
+    def local_identifier(self):
+        """Return local identifier of PHAsset"""
         return self._phasset.localIdentifier()
 
     @property
