@@ -1,6 +1,7 @@
 """Python package for accessing the macOS Photos.app library via Apple's native PhotoKit framework."""
 
 __version__ = "0.1.0"
+import logging
 
 from .asset import (
     LivePhotoAsset,
@@ -15,6 +16,10 @@ from .asset import (
     VideoAsset,
 )
 from .photolibrary import PhotoLibrary
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
+)
 
 __all__ = [
     "PhotoLibrary",

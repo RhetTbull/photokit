@@ -12,7 +12,8 @@ import Photos
 from Foundation import NSURL, NSArray, NSNotificationCenter, NSObject, NSString
 from wurlitzer import pipes
 
-from .asset import LivePhotoAsset, PhotoAsset, VideoAsset
+from .album import Album
+from .asset import Asset, LivePhotoAsset, PhotoAsset, VideoAsset
 from .constants import (
     MIN_SLEEP,
     PHOTOKIT_NOTIFICATION_FINISHED_REQUEST,
@@ -31,12 +32,16 @@ from .exceptions import (
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
+from .photosdb import PhotosDB
 from .platform import get_macos_version
 from .utils import NSURL_to_path, path_to_NSURL
 
 # global to hold state of single/multi library mode
 # once a multi-library mode API is used, the same process cannot use single-library mode APIs again
 _global_single_library_mode = True
+
+# TODO: burst: includeAllBurstAssets
+# https://developer.apple.com/documentation/photokit/phfetchoptions/1624786-includeallburstassets?language=objc
 
 
 class PhotoLibrary:
@@ -69,6 +74,7 @@ class PhotoLibrary:
             _global_single_library_mode = True
             self._phimagemanager = Photos.PHCachingImageManager.defaultManager()
             self._phphotolibrary = Photos.PHPhotoLibrary.sharedPhotoLibrary()
+            self._photosdb = PhotosDB(PhotoLibrary.system_photo_library_path())
         else:
             # undocumented private API to get PHPhotoLibrary for a specific library
             Photos.PHPhotoLibrary.enableMultiLibraryMode()
@@ -79,6 +85,7 @@ class PhotoLibrary:
                 )
             )
             self._phimagemanager = Photos.PHImageManager.alloc().init()
+            self._photosdb = PhotosDB(library_path)
 
     @staticmethod
     def enable_multi_library_mode():
@@ -229,8 +236,31 @@ class PhotoLibrary:
                     f"Unable to create library at {library_path}"
                 )
 
-    def albums(self, top_level: bool = False):
-        """Return list of albums in the
+    def assets(self) -> list[Asset]:
+        """Return list of all assets in the library.
+
+        Returns: list of Asset objects
+
+        Note: Does not currently return assets that are hidden or in trash nor non-selected burst assets
+        """
+        if PhotoLibrary.multi_library_mode():
+            asset_uuids = self._photosdb.get_asset_uuids()
+            return self.fetch_uuid_list(asset_uuids)
+
+        with objc.autorelease_pool():
+            options = Photos.PHFetchOptions.alloc().init()
+            # options.setIncludeHiddenAssets_(True)
+            # TODO: to access hidden photos, Photos > Settings > General > Privacy > Use Touch ID or Password
+            # must be turned off
+            # print(options.includeHiddenAssets())
+            assets = Photos.PHAsset.fetchAssetsWithOptions_(options)
+            asset_list = []
+            for idx in range(assets.count()):
+                asset_list.append(assets.objectAtIndex_(idx))
+            return [self._asset_factory(asset) for asset in asset_list]
+
+    def albums(self, top_level: bool = False) -> list[Album]:
+        """Return list of albums in the library
 
         Args:
             top_level_only: if True, return only top level albums
@@ -267,7 +297,7 @@ class PhotoLibrary:
                     album, (Photos.PHCollectionList, Photos.PHCloudSharedAlbum)
                 ):
                     album_list.append(album)
-            print(album_list)
+            return [Album(album) for album in album_list]
 
     def folders(self):
         """ "Return list of folders in the library"""
@@ -491,7 +521,7 @@ class PhotoLibrary:
             default_album = smart_albums.firstObject()
             return default_album
 
-    def _asset_factory(self, phasset):
+    def _asset_factory(self, phasset: Photos.PHAsset) -> Asset:
         """creates a PhotoAsset, VideoAsset, or LivePhotoAsset
 
         Args:

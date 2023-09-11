@@ -124,8 +124,11 @@ class PhotoKitNotificationDelegate(NSObject):
         # super(NSObject, self).dealloc()
 
 
-### main class implementation
-class PhotoAsset:
+class Asset:
+    """Base class for PhotoKit PHAsset representation"""
+
+
+class PhotoAsset(Asset):
     """PhotoKit PHAsset representation"""
 
     def __init__(self, manager, phasset):
@@ -897,7 +900,7 @@ class LivePhotoRequest(NSObject):
             options.setDeliveryMode_(
                 Photos.PHVideoRequestOptionsDeliveryModeHighQualityFormat
             )
-            delegate = PhotoKitNotificationDelegate.alloc().init()
+            delegate = PhotoKitNotificationsDelegate.alloc().init()
 
             self.nc.addObserver_selector_name_object_(
                 delegate, "liveNotification:", None, None
