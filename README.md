@@ -56,3 +56,45 @@ In addition the public PhotoKit API, this project uses private, undocumented API
 ## License
 
 This project is licensed under the terms of the MIT license.
+
+## To Do
+
+### PhotoLibrary
+
+#### Static Methods
+
+- [x] enable_multi_library_mode():
+- [x] multi_library_mode() -> bool:
+- [x] system_photo_library_path() -> str:
+- [x] authorization_status() -> tuple[bool, bool]:
+- [ ] request_authorization(): (partially implemented)
+- [x] create_library(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+
+#### Methods
+
+- [x] assets(self) -> list[Asset]:
+- [ ] albums(self, top_level: bool = False) -> list[Album]:
+-- Done for single library mode, need to implement for multi-library mode
+- [ ] folders(self):
+- [x] fetch_uuid_list(self, uuid_list):
+- [x] fetch_uuid(self, uuid):
+- [ ] fetch_burst_uuid(self, burstid, all=False):
+- [ ]delete_assets(self, photoassets: list[PhotoAsset]):
+- [x] add_photo(self, image_path: str | pathlib.Path | os.PathLike):
+- [ ] add_video(self, video_path: str | pathlib.Path | os.PathLike):
+- [ ] add_raw(self, raw_path: str | pathlib.Path | os.PathLike):
+- [ ] add_live_photo(self, live_photo_path: str | pathlib.Path | os.PathLike):
+
+### Asset
+
+### PhotoAsset
+
+### VideoAsset
+
+### LivePhotoAsset
+
+### Album
+
+### Folder
+
+### Tests
