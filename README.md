@@ -63,27 +63,32 @@ This project is licensed under the terms of the MIT license.
 
 #### Static Methods
 
-- [x] enable_multi_library_mode():
-- [x] multi_library_mode() -> bool:
-- [x] system_photo_library_path() -> str:
-- [x] authorization_status() -> tuple[bool, bool]:
-- [ ] request_authorization(): (partially implemented)
-- [x] create_library(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+- [x] enable_multi_library_mode()
+- [x] multi_library_mode()
+- [x] system_photo_library_path()
+- [x] authorization_status()
+- [ ] request_authorization() (*partially implemented*)
+- [x] create_library()
 
 #### Methods
 
-- [x] assets(self) -> list[Asset]:
-- [ ] albums(self, top_level: bool = False) -> list[Album]:
--- Done for single library mode, need to implement for multi-library mode
-- [ ] folders(self):
-- [x] fetch_uuid_list(self, uuid_list):
-- [x] fetch_uuid(self, uuid):
-- [ ] fetch_burst_uuid(self, burstid, all=False):
-- [ ]delete_assets(self, photoassets: list[PhotoAsset]):
-- [x] add_photo(self, image_path: str | pathlib.Path | os.PathLike):
-- [ ] add_video(self, video_path: str | pathlib.Path | os.PathLike):
-- [ ] add_raw(self, raw_path: str | pathlib.Path | os.PathLike):
-- [ ] add_live_photo(self, live_photo_path: str | pathlib.Path | os.PathLike):
+- [x] assets()
+- [ ] albums() *Done for single library mode, need to implement for multi-library mode*
+- [ ] smart_albums() (or method for each smart album, e.g. "recents()", "hidden()", etc.)?
+- [ ] moments()
+- [ ] folders()
+- [x] fetch_uuid_list() (*rename to fetch_assets or use assets(uuid_list)*)
+- [x] fetch_uuid() (*rename to fetch_asset() or asset()*)
+- [ ] fetch_burst_uuid()
+- [ ] delete_assets()
+- [x] add_photo()
+- [ ] add_video()
+- [ ] add_raw_pair()
+- [ ] add_live_photo()
+- [ ] create_album()
+- [ ] create_folder()
+- [ ] fetch_or_create_album()
+- [ ] count(), __len__
 
 ### Asset
 
@@ -96,5 +101,7 @@ This project is licensed under the terms of the MIT license.
 ### Album
 
 ### Folder
+
+### PhotoDB
 
 ### Tests
