@@ -195,6 +195,7 @@ class PhotoLibrary:
                 return True
         return bool(auth_status)
 
+    @staticmethod
     def create_library(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
         """Create a new Photos library at library_path
 
