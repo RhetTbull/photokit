@@ -30,7 +30,6 @@ dependencies = [
     "pyobjc-framework-Metal>=9.2,<10.0",
     "pyobjc-framework-Photos>=9.2,<10.0",
     "pyobjc-framework-Vision>=9.2,<10.0",
-    "pyobjc-framework-Vision>=9.2,<10.0",
     "wurlitzer>=3.0.3,<4.0.0",
 ]
 
