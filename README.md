@@ -33,13 +33,19 @@ It is based on work done for [osxphotos](https://github.com/RhetTbull/osxphotos)
 
 ## Installation
 
-Still a work in progress and not yet ready for normal use. It is not yet hosted on PyPI. If you'd like to experiment with it, you can install it from GitHub:
+Still a work in progress and not yet ready for normal use. If you'd like to experiment with it, you can install it from GitHub:
 
 ```bash
 git clone git@github.com:RhetTbull/photokit.git
 cd photokit
 python3 -m pip install flit
 flit install
+```
+
+or via pip:
+    
+```bash
+    pip3 install photokit
 ```
 
 ## Implementation Notes

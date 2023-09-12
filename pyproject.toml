@@ -7,14 +7,24 @@ name = "photokit"
 authors = [{ name = "Rhet Turnbull", email = "rturnbull+git@gmail.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
-classifiers = ["License :: OSI Approved :: MIT License"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: MacOS X",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Objective C",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.9",
+]
 dynamic = ["version", "description"]
 requires-python = ">=3.9"
 dependencies = [
     "pyobjc-core>=9.2,<10.0",
+    "pyobjc-framework-AVFoundation>=9.2,<10.0",
     "pyobjc-framework-AppleScriptKit>=9.2,<10.0",
     "pyobjc-framework-AppleScriptObjC>=9.2,<10.0",
-    "pyobjc-framework-AVFoundation>=9.2,<10.0",
     "pyobjc-framework-Cocoa>=9.2,<10.0",
     "pyobjc-framework-CoreServices>=9.2,<10.0",
     "pyobjc-framework-Metal>=9.2,<10.0",
@@ -29,3 +39,5 @@ test = ["pytest>=7.4.2", "pytest-cov", "osxphotos>=0.63.0"]
 
 [project.urls]
 Home = "https://github.com/RhetTbull/photokit"
+Issues = "https://github.com/RhetTbull/photokit/issues"
+Source = "https://github.com/RhetTbull/photokit"
