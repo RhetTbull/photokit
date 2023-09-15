@@ -273,9 +273,8 @@ class PhotoLibrary:
         Returns: list of Album objects
         """
         if PhotoLibrary.multi_library_mode():
-            raise NotImplementedError(
-                "albums() only works in single library mode for now"
-            )
+            album_uuids = self._photosdb.get_album_uuids()
+            return self._albums_from_uuid_list(album_uuids)
 
         with objc.autorelease_pool():
             # these are single library mode only
@@ -303,6 +302,37 @@ class PhotoLibrary:
                 ):
                     album_list.append(album)
             return [Album(album) for album in album_list]
+
+    def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
+        """Get albums from list of uuids
+
+        Args:
+            uuids: list of str (UUID of image assets to fetch)
+
+        Returns: list of Album objects
+
+        Raises:
+            PhotoKitFetchFailed if fetch failed
+        """
+
+        with objc.autorelease_pool():
+            if not PhotoLibrary.multi_library_mode():
+                albums = self.albums()
+                return [album for album in albums if album.uuid in uuids]
+
+            # multi-library mode
+            fetch_object = NSString.stringWithString_("Album")
+            if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                uuids, fetch_object
+            ):
+                return [
+                    Album(fetch_result.objectAtIndex_(idx))
+                    for idx in range(fetch_result.count())
+                ]
+            else:
+                raise PhotoKitFetchFailed(
+                    f"Fetch did not return result for uuid_list {uuids}"
+                )
 
     def folders(self):
         """ "Return list of folders in the library"""
@@ -335,7 +365,7 @@ class PhotoLibrary:
         Args:
             uuids: list of str (UUID of image assets to fetch)
 
-        Returns: list of PhotoAsset objects
+        Returns: list of Asset objects
 
         Raises:
             PhotoKitFetchFailed if fetch failed

@@ -62,3 +62,22 @@ class PhotosDB:
         results = cursor.fetchall()
         cursor.close()
         return [r[0] for r in results]
+
+    def get_album_uuids(self) -> list[str]:
+        """Get a list of album UUIDs for regular user albums from the Photos database.
+
+        Returns: list of album UUIDs
+        """
+        query = """
+            SELECT ZUUID
+            FROM ZGENERICALBUM
+            WHERE ZKIND = 2 -- regular user albums
+            AND ZTRASHEDDATE IS NULL;
+        """
+        logger.debug(f"query = {query}")
+
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        return [r[0] for r in results]

@@ -20,9 +20,14 @@ class Album:
         return self._collection
 
     @property
-    def identifier(self) -> str:
+    def local_identifier(self) -> str:
         """Return the local identifier of the underlying PHAssetCollection"""
         return self._collection.localIdentifier()
+
+    @property
+    def uuid(self) -> str:
+        """ "Return the UUID of the underlying PHAssetCollection"""
+        return self._collection.localIdentifier().split("/")[0]
 
     @property
     def title(self) -> str:
