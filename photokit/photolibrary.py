@@ -237,6 +237,10 @@ class PhotoLibrary:
                     f"Unable to create library at {library_path}"
                 )
 
+    def library_path(self) -> str:
+        """Return path to Photos library"""
+        return NSURL_to_path(self._phphotolibrary.photoLibraryURL())
+
     def assets(self, uuids: list[str] | None = None) -> list[Asset]:
         """Return list of all assets in the library or subset filtered by UUID.
 
@@ -482,7 +486,7 @@ class PhotoLibrary:
     #     }
     # }];
 
-    def add_photo(self, image_path: str | pathlib.Path | os.PathLike):
+    def add_photo(self, image_path: str | pathlib.Path | os.PathLike) -> Asset:
         """Add a photo to the Photos library
 
         Args:
@@ -490,6 +494,10 @@ class PhotoLibrary:
 
         Returns:
             PhotoAsset object for added photo
+
+        Raises:
+            FileNotFoundError if image_path does not exist
+            PhotoKitImportError if unable to import image
         """
         if not pathlib.Path(image_path).is_file():
             raise FileNotFoundError(f"Could not find image file {image_path}")
@@ -542,7 +550,7 @@ class PhotoLibrary:
 
             event.wait()
 
-            return asset_uuid
+            return self.asset(asset_uuid)
 
     def _default_album(self):
         """Fetch the default Photos album"""

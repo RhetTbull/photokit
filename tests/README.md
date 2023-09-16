@@ -8,3 +8,7 @@ as once PhotoKit is in multi-library mode, single-library mode methods cannot be
 limitation of Apple's PhotoKit framwork.
 
 Also, some tests are interactive and will prompt you for input (for example, the number of photos and videos in your Photos library) as this input is used to test PhotoKit.
+
+## Test Assets
+
+The test suite includes a number of images and videos used as test assets. These assets are copyright Rhet Turnbull, 2023, and licensed under the Creative Commons Attribution 4.0 International Public License.

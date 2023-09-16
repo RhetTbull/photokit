@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import pathlib
+import time
+
+import osxphotos
 import pytest
 
 import photokit
@@ -14,3 +18,39 @@ def test_photolibrary_multi_library_mode_enable_multi_library_mode():
     assert not photokit.PhotoLibrary.multi_library_mode()
     photokit.PhotoLibrary.enable_multi_library_mode()
     assert photokit.PhotoLibrary.multi_library_mode()
+
+
+def test_photolibrary_multi_library_mode_library_path():
+    """Test PhotoLibrary().library_path() method."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    assert library.library_path() == SYSTEM_LIBRARY_PATH
+
+
+def test_photolibrary_multi_library_mode_assets(photo_count: tuple[int, int]):
+    """Test PhotoLibrary().assets() method in multi library mode."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    assets = library.assets()
+    assert len(assets) == sum(photo_count)
+
+
+def test_photolibrary_multi_library_mode_assets_uuid(photosdb: osxphotos.PhotosDB):
+    """Test PhotoLibrary().assets(uuids=) method in multi library mode."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    # find photos user has interacted with (keywords, favorite, title, description)
+    photos = [
+        p
+        for p in photosdb.photos()
+        if p.keywords or p.favorite or p.title or p.description
+    ]
+    # remove hidden photos as PhotoKit doesn't return them
+    photos = [p for p in photos if not p.hidden]
+    photo_uuids = [p.uuid for p in photos]
+    assets = library.assets(uuids=photo_uuids)
+    assert len(assets) == len(photos)
+
+
+def test_photolibrary_create_library(tmp_path: pathlib.Path):
+    """Test PhotoLibrary.create_library() method."""
+    tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
+    library = photokit.PhotoLibrary.create_library(tmp_library)
+    assert library.library_path() == str(tmp_library)
