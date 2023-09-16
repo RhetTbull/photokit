@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7.4.2", "pytest-cov", "osxphotos>=0.63.0"]
+test = ["pytest>=7.4.2", "pytest-cov", "osxphotos>=0.63.4"]
 
 [project.urls]
 Home = "https://github.com/RhetTbull/photokit"
