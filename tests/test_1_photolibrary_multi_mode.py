@@ -1,5 +1,7 @@
 """Test PhotoLibrary class in multi library mode."""
 
+from __future__ import annotations
+
 import pytest
 
 import photokit

@@ -586,3 +586,7 @@ class PhotoLibrary:
             return VideoAsset(self._phimagemanager, phasset)
         else:
             raise PhotoKitMediaTypeError(f"Unknown media type: {media_type}")
+
+    def __len__(self):
+        """Return number of assets in library"""
+        return len(self.assets())
