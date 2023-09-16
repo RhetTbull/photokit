@@ -83,3 +83,17 @@ def test_photolibrary_add_delete_photo(asset_photo: str):
     # make sure it's gone
     with pytest.raises(PhotoKitFetchFailed):
         library.assets(uuids=[asset.uuid])
+
+
+def test_photolibrary_albums(photosdb: osxphotos.PhotosDB):
+    """Test PhotoLibrary().albums() method."""
+    library = photokit.PhotoLibrary()
+    albums = library.albums()
+    assert len(albums) == len(photosdb.album_info)
+
+
+def test_photolibrary_albums_top_level(photosdb: osxphotos.PhotosDB):
+    """Test PhotoLibrary().albums(top_level=True) method."""
+    library = photokit.PhotoLibrary()
+    albums = library.albums(top_level=True)
+    assert len(albums) == len([a for a in photosdb.album_info if a.parent == None])
