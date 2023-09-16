@@ -375,6 +375,10 @@ class PhotoLibrary:
             PhotoKitFetchFailed if fetch failed
         """
 
+        # uuids may be full local identifiers (e.g. "1F2A3B4C-5D6E-7F8A-9B0C-D1E2F3A4B5C6/L0/001")
+        # if so, strip off the "/L0/001" part
+        uuids = [uuid.split("/")[0] for uuid in uuids]
+
         with objc.autorelease_pool():
             if PhotoLibrary.multi_library_mode():
                 fetch_object = NSString.stringWithString_("Asset")

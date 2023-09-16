@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import time
 
@@ -9,6 +10,7 @@ import osxphotos
 import pytest
 
 import photokit
+from photokit.exceptions import PhotoKitFetchFailed
 
 SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
 
@@ -49,8 +51,23 @@ def test_photolibrary_multi_library_mode_assets_uuid(photosdb: osxphotos.PhotosD
     assert len(assets) == len(photos)
 
 
-def test_photolibrary_create_library(tmp_path: pathlib.Path):
+def test_photolibrary_multi_library_mode_create_library(tmp_path: pathlib.Path):
     """Test PhotoLibrary.create_library() method."""
     tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
     library = photokit.PhotoLibrary.create_library(tmp_library)
     assert library.library_path() == str(tmp_library)
+
+
+def test_photolibrary_multi_library_mode_add_delete_photo(asset_photo: str):
+    """Test PhotoLibrary().add_photo() and delete_assets() methods in multi library mode."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    asset = library.add_photo(asset_photo)
+    assert asset.uuid
+    assert asset.original_filename == os.path.basename(asset_photo)
+
+    # delete the asset
+    library.delete_assets([asset])
+
+    # # make sure it's gone
+    # with pytest.raises(PhotoKitFetchFailed):
+    #     library.assets(uuids=[asset.uuid])
