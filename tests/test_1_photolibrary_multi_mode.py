@@ -10,7 +10,7 @@ import osxphotos
 import pytest
 
 import photokit
-from photokit.exceptions import PhotoKitFetchFailed
+from photokit.exceptions import PhotoKitError, PhotoKitFetchFailed
 
 SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
 
@@ -20,6 +20,13 @@ def test_photolibrary_multi_library_mode_enable_multi_library_mode():
     assert not photokit.PhotoLibrary.multi_library_mode()
     photokit.PhotoLibrary.enable_multi_library_mode()
     assert photokit.PhotoLibrary.multi_library_mode()
+
+
+def test_photolibrary_multi_library_mode_raises():
+    """Test PhotoLibrary.__init__() raises error if called in single-library mode after multi-library mode."""
+    photokit.PhotoLibrary.enable_multi_library_mode()
+    with pytest.raises(PhotoKitError):
+        library = photokit.PhotoLibrary()
 
 
 def test_photolibrary_multi_library_mode_library_path():
@@ -51,11 +58,35 @@ def test_photolibrary_multi_library_mode_assets_uuid(photosdb: osxphotos.PhotosD
     assert len(assets) == len(photos)
 
 
+def test_photolibrary_multi_library_mode_asset():
+    """Test PhotoLibrary().asset() method."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    assets = library.assets()
+    asset = library.asset(assets[0].uuid)
+    assert asset.uuid == assets[0].uuid
+
+
+def test_photolibrary_multi_library_mode_asset_raises():
+    """Test PhotoLibrary().asset() method raises error if UUID invalid."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    with pytest.raises(PhotoKitFetchFailed):
+        library.asset("12345")
+
+
 def test_photolibrary_multi_library_mode_create_library(tmp_path: pathlib.Path):
     """Test PhotoLibrary.create_library() method."""
     tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
     library = photokit.PhotoLibrary.create_library(tmp_library)
     assert library.library_path() == str(tmp_library)
+
+
+def test_photolibrary_multi_library_mode_create_library_raises(tmp_path: pathlib.Path):
+    """Test PhotoLibrary.create_library() method raises error if library exists."""
+    tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
+    library = photokit.PhotoLibrary.create_library(tmp_library)
+    assert library.library_path() == str(tmp_library)
+    with pytest.raises(FileExistsError):
+        library = photokit.PhotoLibrary.create_library(tmp_library)
 
 
 def test_photolibrary_multi_library_mode_add_delete_photo(asset_photo: str):
@@ -73,6 +104,14 @@ def test_photolibrary_multi_library_mode_add_delete_photo(asset_photo: str):
         library.assets(uuids=[asset.uuid])
 
 
+def test_photolibrary_multi_library_mode_add_photo_raises_file_not_found():
+    """Test PhotoLibrary().add_photo() raises error if photo doesn't exist."""
+    # add a photo to the library
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    with pytest.raises(FileNotFoundError):
+        library.add_photo("/foo/bar/baz.jpg")
+
+
 def test_photolibrary_multi_library_mode_albums(photosdb: osxphotos.PhotosDB):
     """Test PhotoLibrary().albums() method."""
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
@@ -85,3 +124,18 @@ def test_photolibrary_multi_library_mode_albums_top_level(photosdb: osxphotos.Ph
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
     albums = library.albums(top_level=True)
     assert len(albums) == len([a for a in photosdb.album_info if a.parent == None])
+
+
+def test_photolibrary_multi_library_mode_album():
+    """Test PhotoLibrary().album() method."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    albums = library.albums()
+    album = library.album(albums[0].uuid)
+    assert album.uuid == albums[0].uuid
+
+
+def test_photolibrary_album_raises():
+    """Test PhotoLibrary().album() method with invalid UUID."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    with pytest.raises(PhotoKitFetchFailed):
+        library.album("12345")

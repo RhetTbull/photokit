@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 
 import osxphotos
 import pytest
@@ -47,6 +48,21 @@ def test_photolibrary_assets(photo_count: tuple[int, int]):
     assert len(assets) == sum(photo_count)
 
 
+def test_photolibrary_asset():
+    """Test PhotoLibrary().asset() method."""
+    library = photokit.PhotoLibrary()
+    assets = library.assets()
+    asset = library.asset(assets[0].uuid)
+    assert asset.uuid == assets[0].uuid
+
+
+def test_photolibrary_asset_raises():
+    """Test PhotoLibrary().asset() method raises error if UUID invalid."""
+    library = photokit.PhotoLibrary()
+    with pytest.raises(PhotoKitFetchFailed):
+        library.asset("12345")
+
+
 def test_photolibrary_len(photo_count: tuple[int, int]):
     """Test PhotoLibrary().__len__() method."""
     library = photokit.PhotoLibrary()
@@ -85,6 +101,14 @@ def test_photolibrary_add_delete_photo(asset_photo: str):
         library.assets(uuids=[asset.uuid])
 
 
+def test_photolibrary_add_photo_raises_file_not_found():
+    """Test PhotoLibrary().add_photo() raises error if photo doesn't exist."""
+    # add a photo to the library
+    library = photokit.PhotoLibrary()
+    with pytest.raises(FileNotFoundError):
+        library.add_photo("/foo/bar/baz.jpg")
+
+
 def test_photolibrary_albums(photosdb: osxphotos.PhotosDB):
     """Test PhotoLibrary().albums() method."""
     library = photokit.PhotoLibrary()
@@ -97,3 +121,18 @@ def test_photolibrary_albums_top_level(photosdb: osxphotos.PhotosDB):
     library = photokit.PhotoLibrary()
     albums = library.albums(top_level=True)
     assert len(albums) == len([a for a in photosdb.album_info if a.parent == None])
+
+
+def test_photolibrary_album():
+    """Test PhotoLibrary().album() method."""
+    library = photokit.PhotoLibrary()
+    albums = library.albums()
+    album = library.album(albums[0].uuid)
+    assert album.uuid == albums[0].uuid
+
+
+def test_photolibrary_album_raises():
+    """Test PhotoLibrary().album() method with invalid UUID."""
+    library = photokit.PhotoLibrary()
+    with pytest.raises(PhotoKitFetchFailed):
+        library.album("12345")

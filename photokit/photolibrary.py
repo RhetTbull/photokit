@@ -5,36 +5,26 @@ from __future__ import annotations
 import os
 import pathlib
 import threading
-from typing import Literal, Union
 
 import objc
 import Photos
-from Foundation import NSURL, NSArray, NSNotificationCenter, NSObject, NSString
+from Foundation import NSURL, NSString
 from wurlitzer import pipes
 
 from .album import Album
 from .asset import Asset, LivePhotoAsset, PhotoAsset, VideoAsset
-from .constants import (
-    MIN_SLEEP,
-    PHOTOKIT_NOTIFICATION_FINISHED_REQUEST,
-    PHAccessLevelAddOnly,
-    PHAccessLevelReadWrite,
-    PHImageRequestOptionsVersionCurrent,
-    PHImageRequestOptionsVersionOriginal,
-    PHImageRequestOptionsVersionUnadjusted,
-)
+from .constants import PHAccessLevelAddOnly, PHAccessLevelReadWrite
 from .exceptions import (
     PhotoKitAuthError,
     PhotoKitCreateLibraryError,
     PhotoKitError,
-    PhotoKitExportError,
     PhotoKitFetchFailed,
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
 from .photosdb import PhotosDB
 from .platform import get_macos_version
-from .utils import NSURL_to_path, path_to_NSURL
+from .utils import NSURL_to_path
 
 # global to hold state of single/multi library mode
 # once a multi-library mode API is used, the same process cannot use single-library mode APIs again
@@ -56,6 +46,7 @@ class PhotoLibrary:
 
         Raises:
             PhotoKitAuthError if unable to authorize access to PhotoKit
+            PhotoKitError if attempt to call single-library mode API after multi-library mode API
 
         Note:
             Access to the default shared library is provided via documented PhotoKit APIs.
@@ -71,6 +62,11 @@ class PhotoLibrary:
         # if library_path is None, use default shared library
         global _global_single_library_mode
         if not library_path:
+            if not _global_single_library_mode:
+                # cannot use single-library mode APIs again after using multi-library mode APIs
+                raise PhotoKitError(
+                    "Cannot use single-library mode APIs after using multi-library mode APIs"
+                )
             _global_single_library_mode = True
             self._phimagemanager = Photos.PHCachingImageManager.defaultManager()
             self._phphotolibrary = Photos.PHPhotoLibrary.sharedPhotoLibrary()
@@ -307,36 +303,25 @@ class PhotoLibrary:
                     album_list.append(album)
             return [Album(album) for album in album_list]
 
-    def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
-        """Get albums from list of uuids
+    def album(self, uuid: str) -> Album:
+        """Return Album with uuid = uuid
 
         Args:
-            uuids: list of str (UUID of image assets to fetch)
+            uuid: str; UUID of album to fetch
 
-        Returns: list of Album objects
+        Returns: Album object
 
         Raises:
             PhotoKitFetchFailed if fetch failed
         """
 
-        with objc.autorelease_pool():
-            if PhotoLibrary.multi_library_mode():
-                fetch_object = NSString.stringWithString_("Album")
-                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                    uuids, fetch_object
-                ):
-                    return [
-                        Album(fetch_result.objectAtIndex_(idx))
-                        for idx in range(fetch_result.count())
-                    ]
-                else:
-                    raise PhotoKitFetchFailed(
-                        f"Fetch did not return result for uuid_list {uuids}"
-                    )
-
-            # single library mode
-            albums = self.albums()
-            return [album for album in albums if album.uuid in uuids]
+        try:
+            result = self._albums_from_uuid_list([uuid])
+            return result[0]
+        except Exception as e:
+            raise PhotoKitFetchFailed(
+                f"Fetch did not return result for uuid {uuid}: {e}"
+            )
 
     def folders(self):
         """ "Return list of folders in the library"""
@@ -362,51 +347,6 @@ class PhotoLibrary:
             for i in range(folders.count()):
                 folder = folders.objectAtIndex_(i)
                 print(folder)
-
-    def _assets_from_uuid_list(self, uuids: list[str]) -> list[Asset]:
-        """Get assets from list of uuids
-
-        Args:
-            uuids: list of str (UUID of image assets to fetch)
-
-        Returns: list of Asset objects
-
-        Raises:
-            PhotoKitFetchFailed if fetch failed
-        """
-
-        # uuids may be full local identifiers (e.g. "1F2A3B4C-5D6E-7F8A-9B0C-D1E2F3A4B5C6/L0/001")
-        # if so, strip off the "/L0/001" part
-        uuids = [uuid.split("/")[0] for uuid in uuids]
-
-        with objc.autorelease_pool():
-            if PhotoLibrary.multi_library_mode():
-                fetch_object = NSString.stringWithString_("Asset")
-                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                    uuids, fetch_object
-                ):
-                    return [
-                        self._asset_factory(fetch_result.objectAtIndex_(idx))
-                        for idx in range(fetch_result.count())
-                    ]
-                else:
-                    raise PhotoKitFetchFailed(
-                        f"Fetch did not return result for uuid_list {uuids}"
-                    )
-
-            fetch_options = Photos.PHFetchOptions.alloc().init()
-            fetch_result = Photos.PHAsset.fetchAssetsWithLocalIdentifiers_options_(
-                uuids, fetch_options
-            )
-            if fetch_result and fetch_result.count() >= 1:
-                return [
-                    self._asset_factory(fetch_result.objectAtIndex_(idx))
-                    for idx in range(fetch_result.count())
-                ]
-            else:
-                raise PhotoKitFetchFailed(
-                    f"Fetch did not return result for uuid_list {uuids}"
-                )
 
     def asset(self, uuid: str) -> Asset:
         """Return Asset with uuid = uuid
@@ -506,6 +446,7 @@ class PhotoLibrary:
         if not pathlib.Path(image_path).is_file():
             raise FileNotFoundError(f"Could not find image file {image_path}")
 
+        image_path = str(image_path)
         with objc.autorelease_pool():
             image_url = NSURL.fileURLWithPath_(image_path)
 
@@ -555,6 +496,82 @@ class PhotoLibrary:
             event.wait()
 
             return self.asset(asset_uuid)
+
+    def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
+        """Get albums from list of uuids
+
+        Args:
+            uuids: list of str (UUID of image assets to fetch)
+
+        Returns: list of Album objects
+
+        Raises:
+            PhotoKitFetchFailed if fetch failed
+        """
+
+        with objc.autorelease_pool():
+            if PhotoLibrary.multi_library_mode():
+                fetch_object = NSString.stringWithString_("Album")
+                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                    uuids, fetch_object
+                ):
+                    return [
+                        Album(fetch_result.objectAtIndex_(idx))
+                        for idx in range(fetch_result.count())
+                    ]
+                else:
+                    raise PhotoKitFetchFailed(
+                        f"Fetch did not return result for uuid_list {uuids}"
+                    )
+
+            # single library mode
+            albums = self.albums()
+            return [album for album in albums if album.uuid in uuids]
+
+    def _assets_from_uuid_list(self, uuids: list[str]) -> list[Asset]:
+        """Get assets from list of uuids
+
+        Args:
+            uuids: list of str (UUID of image assets to fetch)
+
+        Returns: list of Asset objects
+
+        Raises:
+            PhotoKitFetchFailed if fetch failed
+        """
+
+        # uuids may be full local identifiers (e.g. "1F2A3B4C-5D6E-7F8A-9B0C-D1E2F3A4B5C6/L0/001")
+        # if so, strip off the "/L0/001" part
+        uuids = [uuid.split("/")[0] for uuid in uuids]
+
+        with objc.autorelease_pool():
+            if PhotoLibrary.multi_library_mode():
+                fetch_object = NSString.stringWithString_("Asset")
+                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                    uuids, fetch_object
+                ):
+                    return [
+                        self._asset_factory(fetch_result.objectAtIndex_(idx))
+                        for idx in range(fetch_result.count())
+                    ]
+                else:
+                    raise PhotoKitFetchFailed(
+                        f"Fetch did not return result for uuid_list {uuids}"
+                    )
+
+            fetch_options = Photos.PHFetchOptions.alloc().init()
+            fetch_result = Photos.PHAsset.fetchAssetsWithLocalIdentifiers_options_(
+                uuids, fetch_options
+            )
+            if fetch_result and fetch_result.count() >= 1:
+                return [
+                    self._asset_factory(fetch_result.objectAtIndex_(idx))
+                    for idx in range(fetch_result.count())
+                ]
+            else:
+                raise PhotoKitFetchFailed(
+                    f"Fetch did not return result for uuid_list {uuids}"
+                )
 
     def _default_album(self):
         """Fetch the default Photos album"""
