@@ -63,8 +63,11 @@ class PhotosDB:
         cursor.close()
         return [r[0] for r in results]
 
-    def get_album_uuids(self) -> list[str]:
+    def get_album_uuids(self, top_level=False) -> list[str]:
         """Get a list of album UUIDs for regular user albums from the Photos database.
+
+        Args:
+            top_level: (bool) if True, only return top-level albums
 
         Returns: list of album UUIDs
         """
@@ -72,8 +75,13 @@ class PhotosDB:
             SELECT ZUUID
             FROM ZGENERICALBUM
             WHERE ZKIND = 2 -- regular user albums
-            AND ZTRASHEDDATE IS NULL;
+            AND ZTRASHEDDATE IS NULL
         """
+        if top_level:
+            # top-level albums have a parent folder of kind 3999
+            # so need to find the Z_PK of the parent folder
+            query += "AND ZPARENTFOLDER = (SELECT Z_PK FROM ZGENERICALBUM WHERE ZKIND = 3999)"
+        query += ";"
         logger.debug(f"query = {query}")
 
         cursor = self.connection.cursor()

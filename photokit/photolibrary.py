@@ -268,12 +268,12 @@ class PhotoLibrary:
         """Return list of albums in the library
 
         Args:
-            top_level_only: if True, return only top level albums
+            top_level: if True, return only top level albums
 
         Returns: list of Album objects
         """
         if PhotoLibrary.multi_library_mode():
-            album_uuids = self._photosdb.get_album_uuids()
+            album_uuids = self._photosdb.get_album_uuids(top_level=top_level)
             return self._albums_from_uuid_list(album_uuids)
 
         with objc.autorelease_pool():
@@ -316,23 +316,23 @@ class PhotoLibrary:
         """
 
         with objc.autorelease_pool():
-            if not PhotoLibrary.multi_library_mode():
-                albums = self.albums()
-                return [album for album in albums if album.uuid in uuids]
+            if PhotoLibrary.multi_library_mode():
+                fetch_object = NSString.stringWithString_("Album")
+                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                    uuids, fetch_object
+                ):
+                    return [
+                        Album(fetch_result.objectAtIndex_(idx))
+                        for idx in range(fetch_result.count())
+                    ]
+                else:
+                    raise PhotoKitFetchFailed(
+                        f"Fetch did not return result for uuid_list {uuids}"
+                    )
 
-            # multi-library mode
-            fetch_object = NSString.stringWithString_("Album")
-            if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                uuids, fetch_object
-            ):
-                return [
-                    Album(fetch_result.objectAtIndex_(idx))
-                    for idx in range(fetch_result.count())
-                ]
-            else:
-                raise PhotoKitFetchFailed(
-                    f"Fetch did not return result for uuid_list {uuids}"
-                )
+            # single library mode
+            albums = self.albums()
+            return [album for album in albums if album.uuid in uuids]
 
     def folders(self):
         """ "Return list of folders in the library"""
@@ -372,12 +372,11 @@ class PhotoLibrary:
         """
 
         with objc.autorelease_pool():
-            if not PhotoLibrary.multi_library_mode():
-                fetch_options = Photos.PHFetchOptions.alloc().init()
-                fetch_result = Photos.PHAsset.fetchAssetsWithLocalIdentifiers_options_(
-                    uuids, fetch_options
-                )
-                if fetch_result and fetch_result.count() >= 1:
+            if PhotoLibrary.multi_library_mode():
+                fetch_object = NSString.stringWithString_("Asset")
+                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                    uuids, fetch_object
+                ):
                     return [
                         self._asset_factory(fetch_result.objectAtIndex_(idx))
                         for idx in range(fetch_result.count())
@@ -387,11 +386,11 @@ class PhotoLibrary:
                         f"Fetch did not return result for uuid_list {uuids}"
                     )
 
-            # multi-library mode
-            fetch_object = NSString.stringWithString_("Asset")
-            if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                uuids, fetch_object
-            ):
+            fetch_options = Photos.PHFetchOptions.alloc().init()
+            fetch_result = Photos.PHAsset.fetchAssetsWithLocalIdentifiers_options_(
+                uuids, fetch_options
+            )
+            if fetch_result and fetch_result.count() >= 1:
                 return [
                     self._asset_factory(fetch_result.objectAtIndex_(idx))
                     for idx in range(fetch_result.count())
@@ -546,17 +545,22 @@ class PhotoLibrary:
             return asset_uuid
 
     def _default_album(self):
-        # Fetch the default Photos album
-        if not PhotoLibrary.multi_library_mode():
-            smart_albums = (
-                Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
-                    Photos.PHAssetCollectionTypeSmartAlbum,
-                    Photos.PHAssetCollectionSubtypeSmartAlbumUserLibrary,
-                    None,
-                )
+        """Fetch the default Photos album"""
+        if PhotoLibrary.multi_library_mode():
+            raise NotImplementedError(
+                "Fetching default album not implemented in multi-library mode"
             )
-            default_album = smart_albums.firstObject()
-            return default_album
+
+        # single library mode
+        smart_albums = (
+            Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
+                Photos.PHAssetCollectionTypeSmartAlbum,
+                Photos.PHAssetCollectionSubtypeSmartAlbumUserLibrary,
+                None,
+            )
+        )
+        default_album = smart_albums.firstObject()
+        return default_album
 
     def _asset_factory(self, phasset: Photos.PHAsset) -> Asset:
         """creates a PhotoAsset, VideoAsset, or LivePhotoAsset
