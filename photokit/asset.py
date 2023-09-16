@@ -110,7 +110,7 @@ class PHAssetResourceData:
         self.data = b""
 
 
-class PhotoKitNotificationDelegate(NSObject):
+class _PhotoKitNotificationDelegate(NSObject):
     """Handles notifications from NotificationCenter;
     used with asynchronous PhotoKit requests to stop event loop when complete
     """
@@ -633,7 +633,7 @@ class PhotoAsset(Asset):
         return [resources.objectAtIndex_(idx) for idx in range(resources.count())]
 
 
-class SlowMoVideoExporter(NSObject):
+class _SlowMoVideoExporter(NSObject):
     def initWithAVAsset_path_(self, avasset, path):
         """init helper class for exporting slow-mo video
 
@@ -641,7 +641,7 @@ class SlowMoVideoExporter(NSObject):
             avasset: AVAsset
             path: python str; path to export to
         """
-        self = objc.super(SlowMoVideoExporter, self).init()
+        self = objc.super(_SlowMoVideoExporter, self).init()
         if self is None:
             return None
         self.avasset = avasset
@@ -822,7 +822,7 @@ class VideoAsset(PhotoAsset):
             if not overwrite:
                 output_file = pathlib.Path(increment_filename(output_file))
 
-            exporter = SlowMoVideoExporter.alloc().initWithAVAsset_path_(
+            exporter = _SlowMoVideoExporter.alloc().initWithAVAsset_path_(
                 videodata.asset, output_file
             )
             video = exporter.exportSlowMoVideo()
@@ -881,13 +881,13 @@ class VideoAsset(PhotoAsset):
             return data
 
 
-class LivePhotoRequest(NSObject):
+class _LivePhotoRequest(NSObject):
     """Manage requests for live photo assets
     See: https://developer.apple.com/documentation/photokit/phimagemanager/1616984-requestlivephotoforasset?language=objc
     """
 
     def initWithManager_Asset_(self, manager, asset):
-        self = objc.super(LivePhotoRequest, self).init()
+        self = objc.super(_LivePhotoRequest, self).init()
         if self is None:
             return None
         self.manager = manager
@@ -999,7 +999,7 @@ class LivePhotoAsset(PhotoAsset):
                 if not dest.is_dir():
                     raise ValueError("dest must be a valid directory: {dest}")
 
-                request = LivePhotoRequest.alloc().initWithManager_Asset_(
+                request = _LivePhotoRequest.alloc().initWithManager_Asset_(
                     self._manager, self.phasset
                 )
                 resources = request.requestLivePhotoResources(version=version)
