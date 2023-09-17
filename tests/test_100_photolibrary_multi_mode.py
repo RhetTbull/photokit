@@ -98,6 +98,7 @@ def test_photolibrary_multi_library_mode_add_delete_photo(asset_photo: str):
 
     # delete the asset
     library.delete_assets([asset])
+    time.sleep(1)
 
     # make sure it's gone
     with pytest.raises(PhotoKitFetchFailed):
@@ -134,8 +135,26 @@ def test_photolibrary_multi_library_mode_album():
     assert album.uuid == albums[0].uuid
 
 
-def test_photolibrary_album_raises():
+def test_photolibrary_multi_library_mode_album_raises():
     """Test PhotoLibrary().album() method with invalid UUID."""
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
     with pytest.raises(PhotoKitFetchFailed):
         library.album("12345")
+
+
+def test_photolibrary_multi_library_mode_album_create_delete(
+    photosdb: osxphotos.PhotosDB,
+):
+    """Test create_album, delete_album"""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    album_title = f"test_album_{time.perf_counter_ns()}"
+    album = library.create_album(album_title)
+    assert album.title == album_title
+
+    # delete the album
+    album_uuid = album.uuid
+    library.delete_album(album)
+
+    # in multi-library mode, fetching the album UUID after delete doesn't raise an error
+    # as expected but the UUID won't appear in the database so use osxphotos to check
+    assert album_uuid not in [a.uuid for a in photosdb.album_info]

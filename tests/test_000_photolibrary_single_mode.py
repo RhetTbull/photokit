@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import time
 
 import osxphotos
 import pytest
@@ -95,6 +96,7 @@ def test_photolibrary_add_delete_photo(asset_photo: str):
 
     # delete the asset
     library.delete_assets([asset])
+    time.sleep(1)
 
     # make sure it's gone
     with pytest.raises(PhotoKitFetchFailed):
@@ -136,3 +138,18 @@ def test_photolibrary_album_raises():
     library = photokit.PhotoLibrary()
     with pytest.raises(PhotoKitFetchFailed):
         library.album("12345")
+
+
+def test_photolibrary_album_create_delete():
+    """Test create_album, delete_album"""
+    library = photokit.PhotoLibrary()
+    album_title = f"test_album_{time.perf_counter_ns()}"
+    album = library.create_album(album_title)
+    assert album.title == album_title
+
+    # delete the album
+    album_uuid = album.uuid
+    library.delete_album(album)
+    time.sleep(1)
+    with pytest.raises(PhotoKitFetchFailed):
+        library.album(album_uuid)

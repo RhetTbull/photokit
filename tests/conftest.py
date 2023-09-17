@@ -6,12 +6,13 @@ import os
 
 import osxphotos
 import pytest
+from osxphotos.utils import get_system_library_path
 
 
 @pytest.fixture(scope="session")
 def photosdb() -> osxphotos.PhotosDB:
     """osxphotos PhotosDB instance"""
-    photosdb = osxphotos.PhotosDB()
+    photosdb = osxphotos.PhotosDB(get_system_library_path())
     yield photosdb
 
 

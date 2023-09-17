@@ -15,6 +15,8 @@ from .album import Album
 from .asset import Asset, LivePhotoAsset, PhotoAsset, VideoAsset
 from .constants import PHAccessLevelAddOnly, PHAccessLevelReadWrite
 from .exceptions import (
+    PhotoKitAlbumCreateError,
+    PhotoKitAlbumDeleteError,
     PhotoKitAuthError,
     PhotoKitCreateLibraryError,
     PhotoKitError,
@@ -323,6 +325,83 @@ class PhotoLibrary:
                 f"Fetch did not return result for uuid {uuid}: {e}"
             )
 
+    def create_album(self, title: str) -> Album:
+        """Create a new album in the library
+
+        Args:
+            title: str, title of new album
+
+        Returns: Album object for new album
+
+        Raises:
+            PhotoKitAlbumCreateError if unable to create album
+        """
+
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            # Create a new album
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitAlbumCreateError(
+                        f"Error creating album {title}: {error}"
+                    )
+                event.set()
+
+            album_uuid = None
+
+            def create_album_handler(title):
+                nonlocal album_uuid
+
+                creation_request = Photos.PHAssetCollectionChangeRequest.creationRequestForAssetCollectionWithTitle_(
+                    title
+                )
+
+                album_uuid = (
+                    creation_request.placeholderForCreatedAssetCollection().localIdentifier()
+                )
+
+            self._phphotolibrary.performChanges_completionHandler_(
+                lambda: create_album_handler(title), completion_handler
+            )
+
+            event.wait()
+
+            return self.album(album_uuid)
+
+    def delete_album(self, album: Album):
+        """Delete album in the library
+
+        Args:
+            album: Album object to delete
+
+        Raises:
+            PhotoKitAlbumDeleteError if unable to create album
+        """
+
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitAlbumDeleteError(
+                        f"Error deleting album {album}: {error}"
+                    )
+                event.set()
+
+            def delete_album_handler(album):
+                deletion_request = (
+                    Photos.PHAssetCollectionChangeRequest.deleteAssetCollections_(
+                        [album.collection]
+                    )
+                )
+
+            self._phphotolibrary.performChanges_completionHandler_(
+                lambda: delete_album_handler(album), completion_handler
+            )
+
+            event.wait()
+
     def folders(self):
         """ "Return list of folders in the library"""
         with objc.autorelease_pool():
@@ -509,6 +588,7 @@ class PhotoLibrary:
             PhotoKitFetchFailed if fetch failed
         """
 
+        uuids = [uuid.split("/")[0] for uuid in uuids]
         with objc.autorelease_pool():
             if PhotoLibrary.multi_library_mode():
                 fetch_object = NSString.stringWithString_("Album")

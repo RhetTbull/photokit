@@ -41,3 +41,15 @@ class PhotoKitCreateLibraryError(PhotoKitError):
     """Exception raised if unable to create a PhotoLibrary object"""
 
     pass
+
+
+class PhotoKitAlbumCreateError(PhotoKitError):
+    """Exception raised if unable to create an Album object"""
+
+    pass
+
+
+class PhotoKitAlbumDeleteError(PhotoKitError):
+    """Exception raised if unable to create an Album object"""
+
+    pass
