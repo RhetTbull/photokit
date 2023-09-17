@@ -127,12 +127,28 @@ def test_photolibrary_multi_library_mode_albums_top_level(photosdb: osxphotos.Ph
     assert len(albums) == len([a for a in photosdb.album_info if a.parent == None])
 
 
-def test_photolibrary_multi_library_mode_album():
-    """Test PhotoLibrary().album() method."""
+def test_photolibrary_multi_library_mode_album_uuid_1():
+    """Test PhotoLibrary().album() method with uuid."""
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
     albums = library.albums()
     album = library.album(albums[0].uuid)
     assert album.uuid == albums[0].uuid
+
+
+def test_photolibrary_multi_library_mode_album_uuid_2():
+    """Test PhotoLibrary().album() method with uuid."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    albums = library.albums()
+    album = library.album(uuid=albums[0].uuid)
+    assert album.uuid == albums[0].uuid
+
+
+def test_photolibrary_multi_library_mode_album_title():
+    """Test PhotoLibrary().album() method with title."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    albums = library.albums()
+    album = library.album(title=albums[0].title)
+    assert album.title == albums[0].title
 
 
 def test_photolibrary_multi_library_mode_album_raises():
@@ -140,6 +156,20 @@ def test_photolibrary_multi_library_mode_album_raises():
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
     with pytest.raises(PhotoKitFetchFailed):
         library.album("12345")
+
+
+def test_photolibrary_multi_library_mode_album_raises_no_args():
+    """Test PhotoLibrary().album() method with invalid args."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    with pytest.raises(ValueError):
+        library.album()
+
+
+def test_photolibrary_multi_library_mode_album_raises_uuid_and_title():
+    """Test PhotoLibrary().album() method with invalid args."""
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    with pytest.raises(ValueError):
+        library.album(uuid="12345", title="foo")
 
 
 def test_photolibrary_multi_library_mode_album_create_delete(

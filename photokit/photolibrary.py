@@ -305,25 +305,43 @@ class PhotoLibrary:
                     album_list.append(album)
             return [Album(self, album) for album in album_list]
 
-    def album(self, uuid: str) -> Album:
-        """Return Album with uuid = uuid
+    def album(self, uuid: str | None = None, title: str | None = None) -> Album:
+        """Get Album by UUID or name
 
         Args:
-            uuid: str; UUID of album to fetch
+            uuid: str | None; UUID of album to fetch
+            title: str | None; title/name of album to fetch
 
         Returns: Album object
 
         Raises:
-            PhotoKitFetchFailed if fetch failed
+            PhotoKitFetchFailed if fetch failed (album not found)
+            ValueError if both uuid and title are None or both are not None
+
+        Note: You must pass only one of uuid or title, not both. If more than one album has the same title,
+        the behavior is undefined; one of the albums will be returned but no guarantee is made as to which one.
         """
 
-        try:
-            result = self._albums_from_uuid_list([uuid])
-            return result[0]
-        except Exception as e:
-            raise PhotoKitFetchFailed(
-                f"Fetch did not return result for uuid {uuid}: {e}"
+        if not (uuid or title) or (uuid and title):
+            raise ValueError(
+                f"Must pass either uuid or title but not both: {uuid=}, {title=}"
             )
+
+        if uuid:
+            try:
+                result = self._albums_from_uuid_list([uuid])
+                return result[0]
+            except Exception as e:
+                raise PhotoKitFetchFailed(
+                    f"Fetch did not return result for uuid {uuid}: {e}"
+                )
+
+        if title:
+            albums = self.albums()
+            for album in albums:
+                if album.title == title:
+                    return album
+            raise PhotoKitFetchFailed(f"Fetch did not return result for title {title}")
 
     def create_album(self, title: str) -> Album:
         """Create a new album in the library

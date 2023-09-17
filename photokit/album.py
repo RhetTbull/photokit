@@ -91,16 +91,6 @@ class Album:
             assets: list of Asset objects to add to the album
         """
 
-        # // Create a new change request
-        # [photoLibrary performChanges:^{
-        #     PHAssetCollectionChangeRequest *albumChangeRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection:album];
-        #     [albumChangeRequest addAssets:@[photoAsset]];
-        # } completionHandler:^(BOOL success, NSError *error) {
-        #     if (success) {
-        #         NSLog(@"Asset added successfully");
-        #     } else {
-        #         NSLog(@"Error adding asset: %@", error);
-        #     }
         with objc.autorelease_pool():
             event = threading.Event()
 
