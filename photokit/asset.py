@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .objc_utils import NSURL_to_path
+
 """ Interface to Apple's PhotoKit framework for direct access to photos stored
     in the user's Photos library.  This is not by any means a complete implementation
     but does provide basic functionality for access metadata about media assets and
@@ -63,8 +65,9 @@ from .exceptions import (
     PhotoKitMediaTypeError,
 )
 from .fileutil import FileUtil
+from .objc_utils import path_to_NSURL
 from .uti import get_preferred_uti_extension
-from .utils import NSURL_to_path, increment_filename, path_to_NSURL
+from .utils import increment_filename
 
 # NOTE: This requires user have granted access to the terminal (e.g. Terminal.app or iTerm)
 # to access Photos.  This should happen automatically the first time it's called. I've

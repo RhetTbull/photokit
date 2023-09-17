@@ -22,9 +22,9 @@ from .exceptions import (
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
+from .objc_utils import NSURL_to_path
 from .photosdb import PhotosDB
 from .platform import get_macos_version
-from .utils import NSURL_to_path
 
 # global to hold state of single/multi library mode
 # once a multi-library mode API is used, the same process cannot use single-library mode APIs again
@@ -301,7 +301,7 @@ class PhotoLibrary:
                     album, (Photos.PHCollectionList, Photos.PHCloudSharedAlbum)
                 ):
                     album_list.append(album)
-            return [Album(album) for album in album_list]
+            return [Album(self, album) for album in album_list]
 
     def album(self, uuid: str) -> Album:
         """Return Album with uuid = uuid
@@ -516,7 +516,7 @@ class PhotoLibrary:
                     uuids, fetch_object
                 ):
                     return [
-                        Album(fetch_result.objectAtIndex_(idx))
+                        Album(self, fetch_result.objectAtIndex_(idx))
                         for idx in range(fetch_result.count())
                     ]
                 else:
