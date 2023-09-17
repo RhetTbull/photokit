@@ -324,6 +324,26 @@ class PhotoAsset(Asset):
         """True if asset is hidden, otherwise False"""
         return self.phasset.isHidden()
 
+    @property
+    def keywords(self) -> list[str]:
+        """Keywords associated with asset"""
+        keywords = Photos.PHKeyword.fetchKeywordsForAsset_options_(self.phasset, None)
+        keyword_list = []
+        for idx in range(keywords.count()):
+            keyword_list.append(keywords.objectAtIndex_(idx).title())
+        return keyword_list
+
+    # Not working yet
+    # @property
+    # def persons(self) -> list[str]:
+    #     """Persons in the asset"""
+    #     persons = Photos.PHPerson.fetchPersonsInAsset_options_(self.phasset, None)
+    #     person_list = []
+    #     for idx in range(persons.count()):
+    #         print(persons.objectAtIndex_(idx))
+    #         person_list.append(persons.objectAtIndex_(idx).displayName())
+    #     return person_list
+
     def metadata(self, version=PHImageRequestOptionsVersionCurrent):
         """Return dict of asset metadata
 
