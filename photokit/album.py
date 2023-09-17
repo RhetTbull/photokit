@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import datetime
+import threading
 from typing import TYPE_CHECKING
 
+import objc
 import Photos
 
+from .exceptions import PhotoKitAlbumAddAssetError
 from .objc_utils import NSDate_to_datetime
 
 if TYPE_CHECKING:
+    from .asset import Asset
     from .photolibrary import PhotoLibrary
 
 
@@ -79,6 +83,46 @@ class Album:
         for idx in range(assets.count()):
             asset_list.append(self._library._asset_factory(assets.objectAtIndex_(idx)))
         return asset_list
+
+    def add_assets(self, assets: list[Asset]):
+        """Add assets to the underlying album
+
+        Args:
+            assets: list of Asset objects to add to the album
+        """
+
+        # // Create a new change request
+        # [photoLibrary performChanges:^{
+        #     PHAssetCollectionChangeRequest *albumChangeRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection:album];
+        #     [albumChangeRequest addAssets:@[photoAsset]];
+        # } completionHandler:^(BOOL success, NSError *error) {
+        #     if (success) {
+        #         NSLog(@"Asset added successfully");
+        #     } else {
+        #         NSLog(@"Error adding asset: %@", error);
+        #     }
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitAlbumAddAssetError(
+                        f"Error adding asset assets to album {self}: {error}"
+                    )
+                event.set()
+
+            def album_add_assets_handler(assets):
+                creation_request = Photos.PHAssetCollectionChangeRequest.changeRequestForAssetCollection_(
+                    self.collection
+                )
+                phassets = [a.phasset for a in assets]
+                creation_request.addAssets_(phassets)
+
+            self._library._phphotolibrary.performChanges_completionHandler_(
+                lambda: album_add_assets_handler(assets), completion_handler
+            )
+
+            event.wait()
 
     def __repr__(self) -> str:
         """Return string representation of Album object"""

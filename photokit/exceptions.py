@@ -53,3 +53,9 @@ class PhotoKitAlbumDeleteError(PhotoKitError):
     """Exception raised if unable to create an Album object"""
 
     pass
+
+
+class PhotoKitAlbumAddAssetError(PhotoKitError):
+    """Exception raised if unable to add asset to album"""
+
+    pass
