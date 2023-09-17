@@ -3,9 +3,12 @@
 __version__ = "0.1.1"
 import logging
 
-from .asset import (
-    LivePhotoAsset,
-    PhotoAsset,
+from .album import Album
+from .asset import LivePhotoAsset, PhotoAsset, VideoAsset
+from .exceptions import (
+    PhotoKitAlbumAddAssetError,
+    PhotoKitAlbumCreateError,
+    PhotoKitAlbumDeleteError,
     PhotoKitAuthError,
     PhotoKitCreateLibraryError,
     PhotoKitError,
@@ -13,7 +16,6 @@ from .asset import (
     PhotoKitFetchFailed,
     PhotoKitImportError,
     PhotoKitMediaTypeError,
-    VideoAsset,
 )
 from .photolibrary import PhotoLibrary
 
@@ -22,15 +24,19 @@ logging.basicConfig(
 )
 
 __all__ = [
-    "PhotoLibrary",
-    "PhotoKitError",
-    "PhotoKitAuthError",
-    "PhotoKitFetchFailed",
-    "PhotoKitMediaTypeError",
-    "PhotoKitExportError",
-    "PhotoKitImportError",
-    "PhotoKitCreateLibraryError",
-    "PhotoAsset",
-    "VideoAsset",
+    "Album",
     "LivePhotoAsset",
+    "PhotoAsset",
+    "PhotoKitAlbumAddAssetError",
+    "PhotoKitAlbumCreateError",
+    "PhotoKitAlbumDeleteError",
+    "PhotoKitAuthError",
+    "PhotoKitCreateLibraryError",
+    "PhotoKitError",
+    "PhotoKitExportError",
+    "PhotoKitFetchFailed",
+    "PhotoKitImportError",
+    "PhotoKitMediaTypeError",
+    "PhotoLibrary",
+    "VideoAsset",
 ]

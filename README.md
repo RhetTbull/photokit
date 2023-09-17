@@ -48,6 +48,10 @@ or via pip:
     pip3 install photokit
 ```
 
+## Documentation
+
+Documentation is available at [https://rhettbull.github.io/photokit/](https://rhettbull.github.io/photokit/).
+
 ## Implementation Notes
 
 PhotoKit is a macOS framework for working with the Photos app.  It is written in Objective-C and is not directly accessible from Python.  This project uses [pyobjc](https://github.com/ronaldoussoren/pyobjc) to provide a Python interface to the PhotoKit framework. It abstracts away the Objective-C implementation details and provides a Pythonic interface to the PhotoKit framework with Python classes to provide access to the user's Photo's library and assets in the library.

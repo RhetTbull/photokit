@@ -16,3 +16,4 @@ docsrc/_build/
 venv/
 .python-version
 cov.xml
+site/

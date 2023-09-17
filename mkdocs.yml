@@ -1,0 +1,10 @@
+site_name: Python PhotoKit Docs
+site_url: https://rhettbull.github.io/photokit/
+nav:
+    - Home: index.md
+    - Reference: reference.md
+plugins:
+    - search
+    - mkdocstrings
+theme:
+    name: material

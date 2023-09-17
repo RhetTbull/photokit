@@ -10,14 +10,14 @@ PhotoKit uses [flit](https://flit.readthedocs.io/en/latest/) to build the projec
 flit build
 ```
 
+## Docs
+
+Build docs with `mkdocs build` then deploy to GitHub pages with `mkdocs gh-deploy`
+
 ## Testing
 
-There are currently no tests for PhotoKit.  I'm working on adding tests.
+Run tests with `pytest`.  The test suite will modify your system Photo's library but will delete all assets it creates when the test suite is complete. The test suite is interactive and needs to ask you to confirm some actions; it cannot be run unattended. See [tests/README.md](tests/README.md) for more information.
 
 ## Publishing to PyPI
 
-PhotoKit is not yet published to PyPI.  When it is, the following command will publish it:
-
-```bash
-flit publish
-```
+Update version in `photokit/__init__.py` then run `flit build` followed by `flit publish`.
