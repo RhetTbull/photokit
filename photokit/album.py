@@ -114,6 +114,36 @@ class Album:
 
             event.wait()
 
+    def remove_assets(self, assets: list[Asset]):
+        """Remove assets from the underlying album
+
+        Args:
+            assets: list of Asset objects to remove from the album
+        """
+
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitAlbumAddAssetError(
+                        f"Error adding asset assets to album {self}: {error}"
+                    )
+                event.set()
+
+            def album_remove_assets_handler(assets):
+                creation_request = Photos.PHAssetCollectionChangeRequest.changeRequestForAssetCollection_(
+                    self.collection
+                )
+                phassets = [a.phasset for a in assets]
+                creation_request.removeAssets_(phassets)
+
+            self._library._phphotolibrary.performChanges_completionHandler_(
+                lambda: album_remove_assets_handler(assets), completion_handler
+            )
+
+            event.wait()
+
     def __repr__(self) -> str:
         """Return string representation of Album object"""
         return f"Album('{self._collection.localizedTitle()}')"

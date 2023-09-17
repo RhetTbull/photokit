@@ -8,14 +8,16 @@ from osxphotos.datetime_utils import datetime_naive_to_local
 
 import photokit
 
+SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
+
 # seconds to wait for Photos before testing changes
 WAIT_FOR_PHOTOS = 1
 
 
-def test_album(photosdb: osxphotos.PhotosDB):
+def test_album_multi_library_mode(photosdb: osxphotos.PhotosDB):
     """Test Album class."""
 
-    library = photokit.PhotoLibrary()
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
     for expected_album in photosdb.album_info:
         album = library.album(expected_album.uuid)
         assert album.uuid == expected_album.uuid
@@ -47,9 +49,9 @@ def test_album(photosdb: osxphotos.PhotosDB):
             assert uuid in expected_uuids
 
 
-def test_album_add_remove_assets():
+def test_album_multi_library_mode_add_remove_assets():
     """Test Album.add_assets() and Album.remove_assets() methods."""
-    library = photokit.PhotoLibrary()
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
 
     # create a test album
     test_album_name = f"PhotoKit Test Album {time.perf_counter_ns()}"

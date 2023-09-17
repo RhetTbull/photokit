@@ -82,22 +82,22 @@ This project is licensed under the terms of the MIT license.
 
 - [x] assets()
 - [x] asset()
-- [ ] albums() *Done for single library mode, need to implement for multi-library mode*
+- [x] albums()
 - [ ] smart_albums() (or method for each smart album, e.g. "recents()", "hidden()", etc.)?
 - [ ] moments()
 - [ ] folders()
 - [x] fetch_uuid_list() (*rename to fetch_assets or use assets(uuid_list)*)
 - [x] fetch_uuid() (*rename to fetch_asset() or asset()*)
 - [ ] fetch_burst_uuid()
-- [ ] delete_assets()
+- [x] delete_assets()
 - [x] add_photo()
 - [ ] add_video()
 - [ ] add_raw_pair()
 - [ ] add_live_photo()
-- [ ] create_album()
+- [x] create_album()
 - [ ] create_folder()
-- [ ] fetch_or_create_album()
-- [ ] count(), __len__
+- [x] fetch_or_create_album() (renamed to album())
+- [x] count(), __len__
 
 ### Asset
 
@@ -109,8 +109,17 @@ This project is licensed under the terms of the MIT license.
 
 ### Album
 
+- [x] album properties
+- [x] add_assets()
+- [x] remove_assets()
+
 ### Folder
 
 ### PhotoDB
 
+- [x] get_asset_uuids()
+- [x] get_album_uuids
+
 ### Tests
+
+- [x] initial test suite
