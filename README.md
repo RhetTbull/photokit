@@ -141,3 +141,7 @@ This project is licensed under the terms of the MIT license.
 
 - [ ] mypy
 - [ ] ruff
+
+### Chores
+
+- [ ] add doit for build automation
