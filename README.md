@@ -136,3 +136,8 @@ This project is licensed under the terms of the MIT license.
 
 - [x] initial documentation
 - [x] publish to GitHub pages
+
+### Type Hints/Linting
+
+- [ ] mypy
+- [ ] ruff
