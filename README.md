@@ -1,6 +1,6 @@
-# PhotoKit
+# Python PhotoKit
 
-A python interface to the Apple [PhotoKit](https://developer.apple.com/documentation/photokit) framework for working with the Photos app on macOS.
+Python PhotoKit is a Python interface to the Apple [PhotoKit](https://developer.apple.com/documentation/photokit) framework for working with the Photos app on macOS.
 
 This is currently a work in progress, and is not yet ready for use. I'm working on extracting the code from [osxphotos](https://github.com/RhetTbull/osxphotos) and adding additional functionality.
 
@@ -43,7 +43,7 @@ flit install
 ```
 
 or via pip:
-    
+
 ```bash
     pip3 install photokit
 ```
@@ -52,11 +52,15 @@ or via pip:
 
 Documentation is available at [https://rhettbull.github.io/photokit/](https://rhettbull.github.io/photokit/).
 
+## Supported Platforms
+
+Python PhotoKit is being developed on macOS Ventura (13.5.x). Initial testing has been done on macOS Monterey (12.x) and macOS Sonoma (14.0 Developer Preview) and it appears to work though no guarantees are made. It will not work on macOS Catalina (10.15.x) or earlier as those versions of macOS do not support some of the API calls used by this library.
+
 ## Implementation Notes
 
 PhotoKit is a macOS framework for working with the Photos app.  It is written in Objective-C and is not directly accessible from Python.  This project uses [pyobjc](https://github.com/ronaldoussoren/pyobjc) to provide a Python interface to the PhotoKit framework. It abstracts away the Objective-C implementation details and provides a Pythonic interface to the PhotoKit framework with Python classes to provide access to the user's Photo's library and assets in the library.
 
-In addition the public PhotoKit API, this project uses private, undocumented APIs to allow access to arbitrary Photos libraries, creating new Photos libraries, etc. The public PhotoKit API only allows access to the user's default Photos library (the so called "System Library").
+In addition the public PhotoKit API, this project uses private, undocumented APIs to allow access to arbitrary Photos libraries, creating new Photos libraries, accessing keywords, etc. The public PhotoKit API only allows access to the user's default Photos library (the so called "System Library") and limits the metadata available.
 
 A number of methods allow retrieval of assets of via a local identifier or [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier). Photos uses a local identifier to identify assets, albums, etc. within a single Photos library. The local identifier is specific to a given instance of the Photos library. The same asset in a different instance of the Photos library will have a different local identifier. This library uses the term "UUID" interchangeably with local identifier. A UUID is a string of hexadecimal digits that takes the form: `61A4B877-5EAC-4710-AA77-6D387629D9A5`. A local identifier returned by the native PhotoKit interface includes additional digits in the form `61A4B877-5EAC-4710-AA77-6D387629D9A5/L0/001`. For any method in this library that accepts a UUID, you may pass either the full local identifier or just the UUID portion. The library will automatically strip off the additional digits.
 
@@ -127,3 +131,8 @@ This project is licensed under the terms of the MIT license.
 ### Tests
 
 - [x] initial test suite
+
+### Documentation
+
+- [x] initial documentation
+- [x] publish to GitHub pages
