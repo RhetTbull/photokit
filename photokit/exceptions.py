@@ -59,3 +59,15 @@ class PhotoKitAlbumAddAssetError(PhotoKitError):
     """Exception raised if unable to add asset to album"""
 
     pass
+
+
+class PhotoKitChangeError(PhotoKitError):
+    """Exception raised if unable to perform change"""
+
+    pass
+
+
+class PhotoKitCreateKeywordError(PhotoKitError):
+    """Exception raised if unable to create keyword"""
+
+    pass

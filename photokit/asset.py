@@ -2,22 +2,37 @@
 
 from __future__ import annotations
 
-from .objc_utils import NSURL_to_path
-
-""" Interface to Apple's PhotoKit framework for direct access to photos stored
-    in the user's Photos library.  This is not by any means a complete implementation
-    but does provide basic functionality for access metadata about media assets and
-    exporting assets from the library.
-
-"""
-
 import copy
 import pathlib
-import sys
 import threading
 import time
+from typing import TYPE_CHECKING
 
-from .platform import get_macos_version
+import AVFoundation
+import Foundation
+import objc
+import Photos
+import Quartz
+from Foundation import NSURL, NSArray, NSNotificationCenter, NSObject, NSString
+from PyObjCTools import AppHelper
+from wurlitzer import pipes
+
+from .constants import (
+    MIN_SLEEP,
+    PHOTOKIT_NOTIFICATION_FINISHED_REQUEST,
+    PHImageRequestOptionsVersionCurrent,
+    PHImageRequestOptionsVersionOriginal,
+    PHImageRequestOptionsVersionUnadjusted,
+)
+from .exceptions import PhotoKitChangeError, PhotoKitExportError, PhotoKitMediaTypeError
+from .fileutil import FileUtil
+from .keyword import fetch_keyword, fetch_keywords
+from .objc_utils import NSURL_to_path, path_to_NSURL
+from .uti import get_preferred_uti_extension
+from .utils import increment_filename
+
+if TYPE_CHECKING:
+    from .photolibrary import PhotoLibrary
 
 # NOTES:
 # - There are several techniques used for handling PhotoKit's various
@@ -33,41 +48,6 @@ from .platform import get_macos_version
 
 # TODO: implement this on photoasset:
 # fetchAssetCollectionsContainingAsset:withType:options:
-
-assert sys.platform == "darwin"
-
-import AVFoundation
-import CoreServices
-import Foundation
-import objc
-import Photos
-import Quartz
-from Foundation import NSURL, NSArray, NSNotificationCenter, NSObject, NSString
-from PyObjCTools import AppHelper
-from wurlitzer import pipes
-
-from .constants import (
-    MIN_SLEEP,
-    PHOTOKIT_NOTIFICATION_FINISHED_REQUEST,
-    PHAccessLevelAddOnly,
-    PHAccessLevelReadWrite,
-    PHImageRequestOptionsVersionCurrent,
-    PHImageRequestOptionsVersionOriginal,
-    PHImageRequestOptionsVersionUnadjusted,
-)
-from .exceptions import (
-    PhotoKitAuthError,
-    PhotoKitCreateLibraryError,
-    PhotoKitError,
-    PhotoKitExportError,
-    PhotoKitFetchFailed,
-    PhotoKitImportError,
-    PhotoKitMediaTypeError,
-)
-from .fileutil import FileUtil
-from .objc_utils import path_to_NSURL
-from .uti import get_preferred_uti_extension
-from .utils import increment_filename
 
 # NOTE: This requires user have granted access to the terminal (e.g. Terminal.app or iTerm)
 # to access Photos.  This should happen automatically the first time it's called. I've
@@ -134,15 +114,15 @@ class Asset:
 class PhotoAsset(Asset):
     """PhotoKit PHAsset representation"""
 
-    def __init__(self, manager, phasset):
+    def __init__(self, library: PhotoLibrary, phasset: Photos.PHAsset):
         """Return a PhotoAsset object
 
         Args:
-            manager = ImageManager object
+            library: a PhotoLibrary object
             phasset: a PHAsset object
-            uuid: UUID of the asset
         """
-        self._manager = manager
+        self._library = library
+        self._manager = self._library._phimagemanager
         self._phasset = phasset
 
     @property
@@ -332,6 +312,47 @@ class PhotoAsset(Asset):
         for idx in range(keywords.count()):
             keyword_list.append(keywords.objectAtIndex_(idx).title())
         return keyword_list
+
+    @keywords.setter
+    def keywords(self, keywords: list[str]):
+        """Set keywords associated with asset"""
+        # TODO: currently only single-library mode
+        with objc.autorelease_pool():
+            current_keywords = fetch_keywords(self.keywords)
+            new_keywords = []
+            for keyword in keywords:
+                if kw := fetch_keyword(keyword):
+                    new_keywords.append(kw)
+                else:
+                    # keyword doesn't exist, create it
+                    kw = self._library.create_keyword(keyword)
+                    new_keywords.append(kw)
+
+            keywords_to_delete = [
+                kw for kw in current_keywords if kw not in new_keywords
+            ]
+
+            event = threading.Event()
+
+            # Create an asset representation of the image file
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitChangeError(f"Error changing asset: {error}")
+                event.set()
+
+            def keyword_changes_handler(keywords):
+                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
+                    self.phasset
+                )
+                change_request.addKeywords_(keywords)
+                if keywords_to_delete:
+                    change_request.removeKeywords_(keywords_to_delete)
+
+            self._library._phphotolibrary.performChanges_completionHandler_(
+                lambda: keyword_changes_handler(new_keywords), completion_handler
+            )
+
+            event.wait()
 
     # Not working yet
     # @property

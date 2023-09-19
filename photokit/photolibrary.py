@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import threading
@@ -18,15 +19,19 @@ from .exceptions import (
     PhotoKitAlbumCreateError,
     PhotoKitAlbumDeleteError,
     PhotoKitAuthError,
+    PhotoKitCreateKeywordError,
     PhotoKitCreateLibraryError,
     PhotoKitError,
     PhotoKitFetchFailed,
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
+from .keyword import fetch_keyword
 from .objc_utils import NSURL_to_path
 from .photosdb import PhotosDB
 from .platform import get_macos_version
+
+logger = logging.getLogger("photokit")
 
 # global to hold state of single/multi library mode
 # once a multi-library mode API is used, the same process cannot use single-library mode APIs again
@@ -576,16 +581,6 @@ class PhotoLibrary:
                     creation_request.placeholderForCreatedAsset().localIdentifier()
                 )
 
-                # # Add the asset to the user's Photos library
-                # album_change_request = (
-                #     Photos.PHAssetCollectionChangeRequest.changeRequestForAssetCollection_(
-                #         user_library
-                #     )
-                # )
-                # album_change_request.addAssets_(
-                #     [creation_request.placeholderForCreatedAsset()]
-                # )
-
             self._phphotolibrary.performChanges_completionHandler_(
                 lambda: import_image_changes_handler(image_url), completion_handler
             )
@@ -593,6 +588,52 @@ class PhotoLibrary:
             event.wait()
 
             return self.asset(asset_uuid)
+
+    def create_keyword(self, keyword: str) -> Photos.PHKeyword:
+        """Add a new keyword to the Photos library.
+
+        Args:
+            keyword: str, keyword to add
+
+        Returns: PHKeyword object for new keyword
+
+        Note: this does not add the keyword to any assets; it only creates the keyword in the library.
+        Keywords must be created in the library before they can be added to assets.
+
+        In general you should be able to use Asset().keywords setter to add a keyword to an asset without
+        calling this method directly.
+        """
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            # Create a new keyword in the library
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitCreateKeywordError(f"Error creating keyword: {error}")
+                event.set()
+
+            keyword_uuid = None
+
+            def create_keyword_change_handler(keyword):
+                nonlocal keyword_uuid
+
+                creation_request = (
+                    Photos.PHKeywordChangeRequest.creationRequestForKeyword()
+                )
+                creation_request.setTitle_(keyword)
+
+                keyword_uuid = (
+                    creation_request.placeholderForCreatedKeyword().localIdentifier()
+                )
+
+            self._phphotolibrary.performChanges_completionHandler_(
+                lambda: create_keyword_change_handler(keyword), completion_handler
+            )
+
+            event.wait()
+            logger.debug(f"Created keyword {keyword} with uuid {keyword_uuid}")
+
+            return fetch_keyword(keyword)
 
     def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
         """Get albums from list of uuids
@@ -706,11 +747,11 @@ class PhotoLibrary:
         media_subtypes = phasset.mediaSubtypes()
 
         if media_subtypes & Photos.PHAssetMediaSubtypePhotoLive:
-            return LivePhotoAsset(self._phimagemanager, phasset)
+            return LivePhotoAsset(self, phasset)
         elif media_type == Photos.PHAssetMediaTypeImage:
-            return PhotoAsset(self._phimagemanager, phasset)
+            return PhotoAsset(self, phasset)
         elif media_type == Photos.PHAssetMediaTypeVideo:
-            return VideoAsset(self._phimagemanager, phasset)
+            return VideoAsset(self, phasset)
         else:
             raise PhotoKitMediaTypeError(f"Unknown media type: {media_type}")
 
