@@ -26,7 +26,7 @@ from .exceptions import (
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
-from .keyword import fetch_keyword
+from .keyword import _fetch_keywords
 from .objc_utils import NSURL_to_path
 from .photosdb import PhotosDB
 from .platform import get_macos_version
@@ -597,12 +597,16 @@ class PhotoLibrary:
 
         Returns: PHKeyword object for new keyword
 
+        Raises:
+            PhotoKitCreateKeywordError if unable to create keyword
+
         Note: this does not add the keyword to any assets; it only creates the keyword in the library.
         Keywords must be created in the library before they can be added to assets.
 
         In general you should be able to use Asset().keywords setter to add a keyword to an asset without
         calling this method directly.
         """
+
         with objc.autorelease_pool():
             event = threading.Event()
 
@@ -633,7 +637,10 @@ class PhotoLibrary:
             event.wait()
             logger.debug(f"Created keyword {keyword} with uuid {keyword_uuid}")
 
-            return fetch_keyword(keyword)
+            if keyword_object := self._keywords_from_title_list([keyword]):
+                return keyword_object[0]
+            else:
+                raise PhotoKitCreateKeywordError(f"Error creating keyword {keyword}")
 
     def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
         """Get albums from list of uuids
@@ -711,6 +718,32 @@ class PhotoLibrary:
                 raise PhotoKitFetchFailed(
                     f"Fetch did not return result for uuid_list {uuids}"
                 )
+
+    def _keywords_from_title_list(self, titles: list[str]) -> list[Photos.PHKeyword]:
+        """Fetch keywords from the library with given titles
+
+        Args:
+            titles: list of str (titles of keywords to fetch)
+
+        Returns: list of PHKeyword objects
+        """
+        if PhotoLibrary.multi_library_mode():
+            uuids = self._photosdb.get_keyword_uuids_for_keywords(titles)
+            fetch_object = NSString.stringWithString_("Keyword")
+            if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                uuids, fetch_object
+            ):
+                return [
+                    fetch_result.objectAtIndex_(idx)
+                    for idx in range(fetch_result.count())
+                ]
+            else:
+                raise PhotoKitFetchFailed(
+                    f"Fetch did not return result for titles {titles}"
+                )
+
+        # single library mode
+        return _fetch_keywords(titles)
 
     def _default_album(self):
         """Fetch the default Photos album"""

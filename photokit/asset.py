@@ -24,9 +24,13 @@ from .constants import (
     PHImageRequestOptionsVersionOriginal,
     PHImageRequestOptionsVersionUnadjusted,
 )
-from .exceptions import PhotoKitChangeError, PhotoKitExportError, PhotoKitMediaTypeError
+from .exceptions import (
+    PhotoKitChangeError,
+    PhotoKitExportError,
+    PhotoKitFetchFailed,
+    PhotoKitMediaTypeError,
+)
 from .fileutil import FileUtil
-from .keyword import fetch_keyword, fetch_keywords
 from .objc_utils import NSURL_to_path, path_to_NSURL
 from .uti import get_preferred_uti_extension
 from .utils import increment_filename
@@ -316,20 +320,24 @@ class PhotoAsset(Asset):
     @keywords.setter
     def keywords(self, keywords: list[str]):
         """Set keywords associated with asset"""
-        # TODO: currently only single-library mode
         with objc.autorelease_pool():
-            current_keywords = fetch_keywords(self.keywords)
-            new_keywords = []
-            for keyword in keywords:
-                if kw := fetch_keyword(keyword):
-                    new_keywords.append(kw)
-                else:
-                    # keyword doesn't exist, create it
-                    kw = self._library.create_keyword(keyword)
-                    new_keywords.append(kw)
+            # get PHKeyword objects for current keywords
+            current_phkeywords = self._library._keywords_from_title_list(self.keywords)
 
-            keywords_to_delete = [
-                kw for kw in current_keywords if kw not in new_keywords
+            # get PHKeyword objects for new keywords
+            try:
+                new_phkeywords = self._library._keywords_from_title_list(keywords)
+            except PhotoKitFetchFailed:
+                new_phkeywords = []
+            phkeywords_titles = [kw.title() for kw in new_phkeywords]
+
+            # are there any new keywords that need to be created?
+            new_keywords = [kw for kw in keywords if kw not in phkeywords_titles]
+            for kw in new_keywords:
+                new_phkeywords.append(self._library.create_keyword(kw))
+
+            phkeywords_to_delete = [
+                kw for kw in current_phkeywords if kw not in new_phkeywords
             ]
 
             event = threading.Event()
@@ -340,16 +348,16 @@ class PhotoAsset(Asset):
                     raise PhotoKitChangeError(f"Error changing asset: {error}")
                 event.set()
 
-            def keyword_changes_handler(keywords):
+            def keyword_changes_handler():
                 change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
                     self.phasset
                 )
-                change_request.addKeywords_(keywords)
-                if keywords_to_delete:
-                    change_request.removeKeywords_(keywords_to_delete)
+                change_request.addKeywords_(new_phkeywords)
+                if phkeywords_to_delete:
+                    change_request.removeKeywords_(phkeywords_to_delete)
 
             self._library._phphotolibrary.performChanges_completionHandler_(
-                lambda: keyword_changes_handler(new_keywords), completion_handler
+                lambda: keyword_changes_handler(), completion_handler
             )
 
             event.wait()

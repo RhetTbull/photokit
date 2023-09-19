@@ -89,3 +89,27 @@ class PhotosDB:
         results = cursor.fetchall()
         cursor.close()
         return [r[0] for r in results]
+
+    def get_keyword_uuids_for_keywords(self, keywords: list[str]) -> list[str]:
+        """Get UUIDs for keywords from the Photos database.
+
+        Args:
+            keywords: list of keyword names
+
+        Returns: list of keyword UUIDs
+
+        Note: the order of the returned UUIDs is not guaranteed to match the order of the input keywords
+        """
+        placeholders = ",".join(["?"] * len(keywords))
+        query = f"""
+            SELECT ZUUID
+            FROM ZKEYWORD
+            WHERE ZTITLE IN ({placeholders});
+            """
+        logger.debug(f"query = {query}")
+
+        cursor = self.connection.cursor()
+        cursor.execute(query, tuple(keywords))
+        results = cursor.fetchall()
+        cursor.close()
+        return [r[0] for r in results]
