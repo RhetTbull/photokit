@@ -336,7 +336,7 @@ class PhotoAsset(Asset):
             for kw in new_keywords:
                 new_phkeywords.append(self._library.create_keyword(kw))
 
-            phkeywords_to_delete = [
+            phkeywords_to_remove = [
                 kw for kw in current_phkeywords if kw not in new_phkeywords
             ]
 
@@ -353,8 +353,8 @@ class PhotoAsset(Asset):
                     self.phasset
                 )
                 change_request.addKeywords_(new_phkeywords)
-                if phkeywords_to_delete:
-                    change_request.removeKeywords_(phkeywords_to_delete)
+                if phkeywords_to_remove:
+                    change_request.removeKeywords_(phkeywords_to_remove)
 
             self._library._phphotolibrary.performChanges_completionHandler_(
                 lambda: keyword_changes_handler(), completion_handler
