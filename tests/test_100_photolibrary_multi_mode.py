@@ -122,6 +122,23 @@ def test_photolibrary_add_delete_video(asset_video: str):
         library.assets(uuids=[asset.uuid])
 
 
+def test_photolibrary_add_delete_live_photo(asset_live_photo: tuple[str, str]):
+    """Test PhotoLibrary().live_photo() and delete_assets() methods."""
+    # add a video to the library
+    library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
+    asset = library.add_live_photo(*asset_live_photo)
+    assert asset.uuid
+    assert asset.original_filename == os.path.basename(asset_live_photo[0])
+
+    # delete the asset
+    library.delete_assets([asset])
+    time.sleep(1)
+
+    # make sure it's gone
+    with pytest.raises(PhotoKitFetchFailed):
+        library.assets(uuids=[asset.uuid])
+
+
 def test_photolibrary_add_video_raises_file_not_found():
     """Test PhotoLibrary().add_video() raises error if photo doesn't exist."""
     library = photokit.PhotoLibrary()

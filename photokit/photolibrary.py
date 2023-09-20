@@ -532,41 +532,71 @@ class PhotoLibrary:
     #     }
     # }];
 
-    def add_photo(self, image_path: str | pathlib.Path | os.PathLike) -> PhotoAsset:
+    def add_photo(self, photo_path: str | pathlib.Path | os.PathLike) -> PhotoAsset:
         """Add a photo to the Photos library
 
         Args:
-            filepath: (str, pathlib.Path, os.PathLike) path to image file to add
+            photo_path: path to image file to add
 
         Returns:
             PhotoAsset object for added photo
 
         Raises:
-            FileNotFoundError if image_path does not exist
+            FileNotFoundError if photo_path does not exist
             PhotoKitImportError if unable to import image
         """
-        if not pathlib.Path(image_path).is_file():
-            raise FileNotFoundError(f"Could not find image file {image_path}")
+        if not pathlib.Path(photo_path).is_file():
+            raise FileNotFoundError(f"Could not find image file {photo_path}")
 
-        return self._add_asset(image_path, Photos.PHAssetResourceTypePhoto)
+        return self._add_asset(photo_path, Photos.PHAssetResourceTypePhoto)
 
     def add_video(self, video_path: str | pathlib.Path | os.PathLike) -> VideoAsset:
         """Add a video to the Photos library
 
         Args:
-            filepath: (str, pathlib.Path, os.PathLike) path to video file to add
+            video_path: path to video file to add
 
         Returns:
             VideoAsset object for added photo
 
         Raises:
-            FileNotFoundError if image_path does not exist
+            FileNotFoundError if video_path does not exist
             PhotoKitImportError if unable to import image
         """
         if not pathlib.Path(video_path).is_file():
             raise FileNotFoundError(f"Could not find video file {video_path}")
 
         return self._add_asset(video_path, Photos.PHAssetResourceTypeVideo)
+
+    def add_live_photo(
+        self,
+        photo_path: str | pathlib.Path | os.PathLike,
+        video_path: str | pathlib.Path | os.PathLike,
+    ) -> LivePhotoAsset:
+        """Add a live photo/video pair to the Photos library
+
+        Args:
+            photo_path: path to image file to add
+            video_path: path to paired video file to add
+
+        Returns:
+            LivePhotoAsset object for added live photo/video pair
+
+        Raises:
+            FileNotFoundError if phto_path or video_path does not exist
+            PhotoKitImportError if unable to import image
+        """
+        if not pathlib.Path(photo_path).is_file():
+            raise FileNotFoundError(f"Could not find photo file {photo_path}")
+        if not pathlib.Path(video_path).is_file():
+            raise FileNotFoundError(f"Could not find video file {video_path}")
+
+        return self._add_asset(
+            photo_path,
+            Photos.PHAssetResourceTypePhoto,
+            video_path,
+            Photos.PHAssetResourceTypePairedVideo,
+        )
 
     def _add_asset(
         self,

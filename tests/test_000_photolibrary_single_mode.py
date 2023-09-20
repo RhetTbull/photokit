@@ -134,6 +134,34 @@ def test_photolibrary_add_video_raises_file_not_found():
         library.add_video("/foo/bar/baz.mov")
 
 
+def test_photolibrary_add_delete_live_photo(asset_live_photo: tuple[str, str]):
+    """Test PhotoLibrary().live_photo() and delete_assets() methods."""
+    # add a video to the library
+    library = photokit.PhotoLibrary()
+    asset = library.add_live_photo(*asset_live_photo)
+    assert asset.uuid
+    assert asset.original_filename == os.path.basename(asset_live_photo[0])
+
+    # delete the asset
+    library.delete_assets([asset])
+    time.sleep(1)
+
+    # make sure it's gone
+    with pytest.raises(PhotoKitFetchFailed):
+        library.assets(uuids=[asset.uuid])
+
+
+def test_photolibrary_add_live_photo_raises_file_not_found(
+    asset_live_photo: tuple[str, str]
+):
+    """Test PhotoLibrary().add_live_photo() raises error if photo or video doesn't exist."""
+    library = photokit.PhotoLibrary()
+    with pytest.raises(FileNotFoundError):
+        library.add_live_photo("/foo/bar/baz.heic", asset_live_photo[1])
+    with pytest.raises(FileNotFoundError):
+        library.add_live_photo(asset_live_photo[0], "/foo/bar/baz.mov")
+
+
 def test_photolibrary_albums(photosdb: osxphotos.PhotosDB):
     """Test PhotoLibrary().albums() method."""
     library = photokit.PhotoLibrary()

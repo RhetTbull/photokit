@@ -48,3 +48,13 @@ def asset_video() -> str:
     """Retur path to video asset for import tests"""
     cwd = os.getcwd()
     return os.path.join(cwd, "tests", "assets", "test_video.MOV")
+
+
+@pytest.fixture(scope="session")
+def asset_live_photo() -> tuple[str, str]:
+    """Return path to photo/video assets for live photo for import tests"""
+    cwd = os.getcwd()
+    return (
+        os.path.join(cwd, "tests", "assets", "test_live.HEIC"),
+        os.path.join(cwd, "tests", "assets", "test_live.mov"),
+    )
