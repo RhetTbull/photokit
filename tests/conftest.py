@@ -41,3 +41,10 @@ def asset_photo() -> str:
     """Retur path to photo asset for import tests"""
     cwd = os.getcwd()
     return os.path.join(cwd, "tests", "assets", "test_photo.JPG")
+
+
+@pytest.fixture(scope="session")
+def asset_video() -> str:
+    """Retur path to video asset for import tests"""
+    cwd = os.getcwd()
+    return os.path.join(cwd, "tests", "assets", "test_video.MOV")

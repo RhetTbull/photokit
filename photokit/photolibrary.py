@@ -532,7 +532,7 @@ class PhotoLibrary:
     #     }
     # }];
 
-    def add_photo(self, image_path: str | pathlib.Path | os.PathLike) -> Asset:
+    def add_photo(self, image_path: str | pathlib.Path | os.PathLike) -> PhotoAsset:
         """Add a photo to the Photos library
 
         Args:
@@ -548,14 +548,60 @@ class PhotoLibrary:
         if not pathlib.Path(image_path).is_file():
             raise FileNotFoundError(f"Could not find image file {image_path}")
 
-        image_path = str(image_path)
-        with objc.autorelease_pool():
-            image_url = NSURL.fileURLWithPath_(image_path)
+        return self._add_asset(image_path, Photos.PHAssetResourceTypePhoto)
 
-            # user_library = self._default_album()
-            # if not user_library:
-            #     print("User's Photos library is not accessible.")
-            #     return
+    def add_video(self, video_path: str | pathlib.Path | os.PathLike) -> VideoAsset:
+        """Add a video to the Photos library
+
+        Args:
+            filepath: (str, pathlib.Path, os.PathLike) path to video file to add
+
+        Returns:
+            VideoAsset object for added photo
+
+        Raises:
+            FileNotFoundError if image_path does not exist
+            PhotoKitImportError if unable to import image
+        """
+        if not pathlib.Path(video_path).is_file():
+            raise FileNotFoundError(f"Could not find video file {video_path}")
+
+        return self._add_asset(video_path, Photos.PHAssetResourceTypeVideo)
+
+    def _add_asset(
+        self,
+        asset_path: str | pathlib.Path | os.PathLike,
+        asset_type: int,
+        asset_additional_resource_path: str | pathlib.Path | os.PathLike | None = None,
+        asset_additional_resource_type: int | None = None,
+    ) -> Asset:
+        """Add an asset to the Photos library
+
+        Args:
+            asset_path: path to file to add
+            asset_type: AssetType, type of asset to add
+            asset_additional_resource_path: path to additional file to add (e.g. Live video or RAW file)
+            asset_additional_resource_type: AssetType, type of additional asset to add
+
+        Returns:
+            Asset object for added photo
+
+        Raises:
+            PhotoKitImportError if unable to import image
+        """
+        asset_path = str(asset_path)
+        if asset_additional_resource_path:
+            if not asset_additional_resource_type:
+                raise ValueError("Must pass asset_additional_resource_type")
+            asset_additional_resource_path = str(asset_additional_resource_path)
+
+        with objc.autorelease_pool():
+            asset_url = NSURL.fileURLWithPath_(asset_path)
+            asset_additional_resource_url = (
+                NSURL.fileURLWithPath_(asset_additional_resource_path)
+                if asset_additional_resource_path
+                else None
+            )
 
             event = threading.Event()
 
@@ -567,22 +613,29 @@ class PhotoLibrary:
 
             asset_uuid = None
 
-            def import_image_changes_handler(image_url):
+            def import_asset_changes_handler():
                 nonlocal asset_uuid
 
                 creation_request = (
                     Photos.PHAssetCreationRequest.creationRequestForAsset()
                 )
                 creation_request.addResourceWithType_fileURL_options_(
-                    Photos.PHAssetResourceTypePhoto, image_url, None
+                    asset_type, asset_url, None
                 )
+
+                if asset_additional_resource_path:
+                    creation_request.addResourceWithType_fileURL_options_(
+                        asset_additional_resource_type,
+                        asset_additional_resource_url,
+                        None,
+                    )
 
                 asset_uuid = (
                     creation_request.placeholderForCreatedAsset().localIdentifier()
                 )
 
             self._phphotolibrary.performChanges_completionHandler_(
-                lambda: import_image_changes_handler(image_url), completion_handler
+                lambda: import_asset_changes_handler(), completion_handler
             )
 
             event.wait()

@@ -105,10 +105,33 @@ def test_photolibrary_add_delete_photo(asset_photo: str):
 
 def test_photolibrary_add_photo_raises_file_not_found():
     """Test PhotoLibrary().add_photo() raises error if photo doesn't exist."""
-    # add a photo to the library
     library = photokit.PhotoLibrary()
     with pytest.raises(FileNotFoundError):
         library.add_photo("/foo/bar/baz.jpg")
+
+
+def test_photolibrary_add_delete_video(asset_video: str):
+    """Test PhotoLibrary().add_video() and delete_assets() methods."""
+    # add a video to the library
+    library = photokit.PhotoLibrary()
+    asset = library.add_video(asset_video)
+    assert asset.uuid
+    assert asset.original_filename == os.path.basename(asset_video)
+
+    # delete the asset
+    library.delete_assets([asset])
+    time.sleep(1)
+
+    # make sure it's gone
+    with pytest.raises(PhotoKitFetchFailed):
+        library.assets(uuids=[asset.uuid])
+
+
+def test_photolibrary_add_video_raises_file_not_found():
+    """Test PhotoLibrary().add_video() raises error if photo doesn't exist."""
+    library = photokit.PhotoLibrary()
+    with pytest.raises(FileNotFoundError):
+        library.add_video("/foo/bar/baz.mov")
 
 
 def test_photolibrary_albums(photosdb: osxphotos.PhotosDB):
