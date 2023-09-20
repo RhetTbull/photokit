@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import datetime
 import pathlib
 import threading
 import time
@@ -31,7 +32,7 @@ from .exceptions import (
     PhotoKitMediaTypeError,
 )
 from .fileutil import FileUtil
-from .objc_utils import NSURL_to_path, path_to_NSURL
+from .objc_utils import NSDate_to_datetime, NSURL_to_path, path_to_NSURL
 from .uti import get_preferred_uti_extension
 from .utils import increment_filename
 
@@ -279,14 +280,14 @@ class PhotoAsset(Asset):
         return self.phasset.pixelHeight()
 
     @property
-    def date(self):
-        """date asset was created"""
-        return self.phasset.creationDate()
+    def date(self) -> datetime.datetime:
+        """date asset was created as a naive datetime.datetime"""
+        return NSDate_to_datetime(self.phasset.creationDate())
 
     @property
-    def date_modified(self):
-        """date asset was modified"""
-        return self.phasset.modificationDate()
+    def date_modified(self) -> datetime.datetime:
+        """date asset was modified as a naive datetime.datetime"""
+        return NSDate_to_datetime(self.phasset.modificationDate())
 
     @property
     def location(self):

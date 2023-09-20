@@ -1,9 +1,11 @@
 """Test Asset class."""
 
+import datetime
 import pathlib
 
 import osxphotos
 import pytest
+from osxphotos.datetime_utils import datetime_remove_tz
 
 import photokit
 
@@ -177,3 +179,20 @@ def test_asset_burst(asset: photokit.PhotoAsset):
 def test_asset_source_type(asset: photokit.PhotoAsset):
     """Test asset.source_type"""
     assert asset.source_type == 1
+
+
+def test_asset_pixel_width_height(asset: photokit.PhotoAsset):
+    """Test asset.pixel_width, asset.pixel_height"""
+    assert asset.pixel_width == 3024
+    assert asset.pixel_height == 4032
+
+
+def test_asset_date(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInfo):
+    """Test asset.date"""
+    assert asset.date == datetime_remove_tz(expected.date)
+
+
+def test_asset_date_modified(asset: photokit.PhotoAsset):
+    """Test asset.date_modified"""
+    # unlike osxphotos.date_modified which returns None if photo has not been modified
+    assert isinstance(asset.date_modified, datetime.datetime)
