@@ -58,3 +58,13 @@ def asset_live_photo() -> tuple[str, str]:
         os.path.join(cwd, "tests", "assets", "test_live.HEIC"),
         os.path.join(cwd, "tests", "assets", "test_live.mov"),
     )
+
+
+@pytest.fixture(scope="session")
+def asset_raw_photo() -> tuple[str, str]:
+    """Return path to raw+jpeg assets for import tests"""
+    cwd = os.getcwd()
+    return (
+        os.path.join(cwd, "tests", "assets", "test_raw.cr2"),
+        os.path.join(cwd, "tests", "assets", "test_raw.JPG"),
+    )

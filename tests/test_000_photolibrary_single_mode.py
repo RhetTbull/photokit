@@ -11,6 +11,7 @@ import pytest
 from osxphotos.utils import get_system_library_path
 
 import photokit
+from photokit.asset import LivePhotoAsset, PhotoAsset, VideoAsset
 from photokit.exceptions import PhotoKitFetchFailed
 
 
@@ -91,6 +92,7 @@ def test_photolibrary_add_delete_photo(asset_photo: str):
     # add a photo to the library
     library = photokit.PhotoLibrary()
     asset = library.add_photo(asset_photo)
+    assert isinstance(asset, PhotoAsset)
     assert asset.uuid
     assert asset.original_filename == os.path.basename(asset_photo)
 
@@ -115,6 +117,7 @@ def test_photolibrary_add_delete_video(asset_video: str):
     # add a video to the library
     library = photokit.PhotoLibrary()
     asset = library.add_video(asset_video)
+    assert isinstance(asset, VideoAsset)
     assert asset.uuid
     assert asset.original_filename == os.path.basename(asset_video)
 
@@ -139,6 +142,7 @@ def test_photolibrary_add_delete_live_photo(asset_live_photo: tuple[str, str]):
     # add a video to the library
     library = photokit.PhotoLibrary()
     asset = library.add_live_photo(*asset_live_photo)
+    assert isinstance(asset, LivePhotoAsset)
     assert asset.uuid
     assert asset.original_filename == os.path.basename(asset_live_photo[0])
 
@@ -160,6 +164,38 @@ def test_photolibrary_add_live_photo_raises_file_not_found(
         library.add_live_photo("/foo/bar/baz.heic", asset_live_photo[1])
     with pytest.raises(FileNotFoundError):
         library.add_live_photo(asset_live_photo[0], "/foo/bar/baz.mov")
+
+
+def test_photolibrary_add_delete_raw_pair_photo(asset_raw_photo: tuple[str, str]):
+    """Test PhotoLibrary().add_raw_pair() and delete_assets() methods."""
+    # add raw+jpeg to Photos libray
+    library = photokit.PhotoLibrary()
+    asset = library.add_raw_pair_photo(*asset_raw_photo)
+    assert isinstance(asset, PhotoAsset)
+    assert asset.uuid
+    assert (
+        asset.original_filename.lower() == os.path.basename(asset_raw_photo[1]).lower()
+    )
+    assert asset.raw_filename.lower() == os.path.basename(asset_raw_photo[0]).lower()
+
+    # delete the asset
+    library.delete_assets([asset])
+    time.sleep(1)
+
+    # make sure it's gone
+    with pytest.raises(PhotoKitFetchFailed):
+        library.assets(uuids=[asset.uuid])
+
+
+def test_photolibrary_add_raw_pair_photo_raises_file_not_found(
+    asset_raw_photo: tuple[str, str]
+):
+    """Test PhotoLibrary().add_live_photo() raises error if photo or video doesn't exist."""
+    library = photokit.PhotoLibrary()
+    with pytest.raises(FileNotFoundError):
+        library.add_raw_pair_photo("/foo/bar/baz.c32", asset_raw_photo[1])
+    with pytest.raises(FileNotFoundError):
+        library.add_raw_pair_photo(asset_raw_photo[0], "/foo/bar/baz.jpg")
 
 
 def test_photolibrary_albums(photosdb: osxphotos.PhotosDB):

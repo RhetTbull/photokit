@@ -598,6 +598,41 @@ class PhotoLibrary:
             Photos.PHAssetResourceTypePairedVideo,
         )
 
+    def add_raw_pair_photo(
+        self,
+        raw_path: str | pathlib.Path | os.PathLike,
+        jpeg_path: str | pathlib.Path | os.PathLike,
+    ) -> LivePhotoAsset:
+        """Add a RAW+JPEG pair to the Photos library
+
+        Args:
+            raw_path: path to RAW image file to add
+            jpeg_path: path to paired JPEG file to add
+
+        Returns:
+            PhotoAsset object for added photo pair
+
+        Raises:
+            FileNotFoundError if phto_path or video_path does not exist
+            PhotoKitImportError if unable to import image
+
+        Note:
+            The JPEG image will be treated as the "Original" image in Photos and
+            the paired RAW will be considered the alternate image.
+            This is consistent with Photos default behavior.
+        """
+        if not pathlib.Path(raw_path).is_file():
+            raise FileNotFoundError(f"Could not find photo file {raw_path}")
+        if not pathlib.Path(jpeg_path).is_file():
+            raise FileNotFoundError(f"Could not find photo file {jpeg_path}")
+
+        return self._add_asset(
+            jpeg_path,
+            Photos.PHAssetResourceTypePhoto,
+            raw_path,
+            Photos.PHAssetResourceTypeAlternatePhoto,
+        )
+
     def _add_asset(
         self,
         asset_path: str | pathlib.Path | os.PathLike,
