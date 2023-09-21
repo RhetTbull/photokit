@@ -11,6 +11,9 @@ import photokit
 
 SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
 
+# test_video.MOV
+VIDEO_DURATION = 10.341667
+
 
 @pytest.fixture(scope="module")
 def library():
@@ -196,3 +199,18 @@ def test_asset_date_modified(asset: photokit.PhotoAsset):
     """Test asset.date_modified"""
     # unlike osxphotos.date_modified which returns None if photo has not been modified
     assert isinstance(asset.date_modified, datetime.datetime)
+
+
+def test_asset_location(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInfo):
+    """Test asset.location"""
+    assert asset.location == expected.location
+
+
+def test_asset_duration_photo(asset: photokit.PhotoAsset):
+    """Test asset.duration"""
+    assert asset.duration == 0.0
+
+
+def test_asset_duration_video(video_asset: photokit.PhotoAsset):
+    """Test asset.duration"""
+    assert video_asset.duration == pytest.approx(VIDEO_DURATION)

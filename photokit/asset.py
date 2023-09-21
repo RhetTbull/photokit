@@ -290,17 +290,18 @@ class PhotoAsset(Asset):
         return NSDate_to_datetime(self.phasset.modificationDate())
 
     @property
-    def location(self):
-        """location of the asset"""
-        return self.phasset.location()
+    def location(self) -> tuple[float, float] | None:
+        """location of the asset as a tuple of (latitude, longitude) or None if no location"""
+        cllocation = self.phasset.location()
+        return cllocation.coordinate() if cllocation else None
 
     @property
-    def duration(self):
-        """duration of the asset"""
+    def duration(self) -> float:
+        """duration of the asset in seconds"""
         return self.phasset.duration()
 
     @property
-    def favorite(self):
+    def favorite(self) -> bool:
         """True if asset is favorite, otherwise False"""
         return self.phasset.isFavorite()
 
