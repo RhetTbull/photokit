@@ -379,16 +379,23 @@ class PhotoAsset(Asset):
         return cllocation.coordinate() if cllocation else None
 
     @location.setter
-    def location(self, latlon: tuple[float, float]):
-        """Set location of asset to lat, lon"""
+    def location(self, latlon: tuple[float, float] | None):
+        """Set location of asset to lat, lon or None"""
 
-        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
-            location = Foundation.CLLocation.alloc().initWithLatitude_longitude_(
-                latlon[0], latlon[1]
-            )
-            change_request.setLocation_(location)
+        with objc.autorelease_pool():
 
-        self._perform_changes(change_request_handler)
+            def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+                if latlon is None:
+                    location = Foundation.CLLocation.alloc().init()
+                else:
+                    location = (
+                        Foundation.CLLocation.alloc().initWithLatitude_longitude_(
+                            latlon[0], latlon[1]
+                        )
+                    )
+                change_request.setLocation_(location)
+
+            self._perform_changes(change_request_handler)
 
     @property
     def duration(self) -> float:

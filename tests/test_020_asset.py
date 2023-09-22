@@ -238,6 +238,12 @@ def test_asset_location(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInf
     assert asset.location == (-33.0, -117.0)
 
 
+def test_asset_location_none(asset: photokit.PhotoAsset):
+    """Test asset location can be set to None"""
+    asset.location = None
+    assert asset.location is None
+
+
 def test_asset_duration_photo(asset: photokit.PhotoAsset):
     """Test asset.duration"""
     assert asset.duration == 0.0
