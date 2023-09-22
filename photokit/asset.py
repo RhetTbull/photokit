@@ -303,7 +303,35 @@ class PhotoAsset(Asset):
     @property
     def favorite(self) -> bool:
         """True if asset is favorite, otherwise False"""
+        self._refresh()
         return self.phasset.isFavorite()
+
+    @favorite.setter
+    def favorite(self, value: bool):
+        """Set or clear favorite status of asset"""
+        if self.favorite == value:
+            return
+
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitChangeError(f"Error changing asset: {error}")
+                event.set()
+
+            def favorite_changes_handler():
+                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
+                    self.phasset
+                )
+                change_request.setFavorite_(value)
+
+            self._library._phphotolibrary.performChanges_completionHandler_(
+                lambda: favorite_changes_handler(), completion_handler
+            )
+
+            event.wait()
+        self._refresh()
 
     @property
     def hidden(self):
@@ -441,6 +469,12 @@ class PhotoAsset(Asset):
         """
         imagedata = self._request_image_data(version=version)
         return imagedata.info["PHImageResultIsDegradedKey"]
+
+    def _refresh(self):
+        """Reload the asset from the library"""
+        # this shouldn't be necessary but sometimes after creating a change (for example, toggling favorite)
+        # the properties do not refresh
+        self._phasset = self._library.asset(self.uuid)._phasset
 
     def export(
         self,

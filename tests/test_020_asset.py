@@ -214,3 +214,11 @@ def test_asset_duration_photo(asset: photokit.PhotoAsset):
 def test_asset_duration_video(video_asset: photokit.PhotoAsset):
     """Test asset.duration"""
     assert video_asset.duration == pytest.approx(VIDEO_DURATION)
+
+
+def test_asset_favorite(asset: photokit.PhotoAsset):
+    """Test asset.favorite getter & setter"""
+    asset.favorite = False
+    assert not asset.favorite
+    asset.favorite = True
+    assert asset.favorite
