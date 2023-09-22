@@ -211,6 +211,26 @@ def test_asset_date_added(asset: photokit.PhotoAsset):
     assert asset.date_added == datetime.datetime(2021, 1, 1, 0, 0, 0)
 
 
+def test_timezone_offset(asset: photokit.PhotoAsset):
+    """Test timezone setter/getter"""
+    assert isinstance(asset.timezone_offset, int)
+    asset.timezone_offset = 0
+    assert asset.timezone_offset == 0
+
+
+def test_timezone(asset: photokit.PhotoAsset):
+    """Test timezone setter/getter"""
+    assert isinstance(asset.timezone, str)
+    asset.timezone = "America/Chicago"
+    assert asset.timezone == "America/Chicago"
+
+
+def test_timezone_bad_value(asset: photokit.PhotoAsset):
+    """Test timezone setter with invalid value"""
+    with pytest.raises(ValueError):
+        asset.timezone = "Foo/Bar"
+
+
 def test_asset_location(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInfo):
     """Test asset.location setter & getter"""
     assert asset.location == expected.location

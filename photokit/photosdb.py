@@ -17,6 +17,9 @@ TIME_DELTA = (
     datetime.datetime(2001, 1, 1, 0, 0) - datetime.datetime(1970, 1, 1, 0, 0)
 ).total_seconds()
 
+# TODO: Add retry decorator from tenacity for all db access
+# TODO: Add thread support from sqlite (see check_same_thread in osxphotos)
+
 
 class PhotosDB:
     """Access the Photos SQLite database directly."""
@@ -148,3 +151,35 @@ class PhotosDB:
         except (ValueError, TypeError):
             # I've seen corrupt values in the Photos database
             return datetime.datetime(1970, 1, 1, 0, 0, 0)
+
+    def get_timezone_for_uuid(self, uuid: str) -> tuple[int, str, str]:
+        """Get the timezone, in seconds from GMT for a given UUID"""
+        query = """ 
+            SELECT 
+            ZADDITIONALASSETATTRIBUTES.ZTIMEZONEOFFSET, 
+            ZADDITIONALASSETATTRIBUTES.ZTIMEZONENAME
+            FROM ZADDITIONALASSETATTRIBUTES
+            JOIN ZASSET
+            ON ZADDITIONALASSETATTRIBUTES.ZASSET = ZASSET.Z_PK
+            WHERE ZASSET.ZUUID = ?; 
+        """
+        logger.debug(f"query = {query}")
+
+        cursor = self.connection.cursor()
+        cursor.execute(query, (uuid,))
+        results = cursor.fetchone()
+        tz, tzname = (results[0], results[1])
+        tz = tz or 0  # it's possible for tz to be None
+        tz_str = tz_to_str(tz)
+        return tz, tz_str, tzname
+
+
+def tz_to_str(tz_seconds: int) -> str:
+    """convert timezone offset in seconds to string in form +00:00 (as offset from GMT)"""
+    sign = "+" if tz_seconds >= 0 else "-"
+    tz_seconds = abs(tz_seconds)
+    # get min and seconds first
+    mm, _ = divmod(tz_seconds, 60)
+    # Get hours
+    hh, mm = divmod(mm, 60)
+    return f"{sign}{hh:02}{mm:02}"

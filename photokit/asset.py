@@ -334,6 +334,43 @@ class PhotoAsset(Asset):
         self._perform_changes(change_request_handler)
 
     @property
+    def timezone_offset(self) -> int:
+        """Timezone offset (seconds from GMT) of the asset"""
+        # no property that I can find to retrieve this directly
+        # so query the database instead
+        return self._library._photosdb.get_timezone_for_uuid(self.uuid)[0]
+
+    @timezone_offset.setter
+    def timezone_offset(self, tz_offset: int):
+        """Set timezone offset from UTC (in seconds) for asset"""
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            timezone = Foundation.NSTimeZone.timeZoneForSecondsFromGMT_(tz_offset)
+            date = change_request.creationDate()
+            change_request.setTimeZone_withDate_(timezone, date)
+
+        self._perform_changes(change_request_handler)
+
+    @property
+    def timezone(self) -> str:
+        """The named timezone of the asset"""
+        return self._library._photosdb.get_timezone_for_uuid(self.uuid)[2]
+
+    @timezone.setter
+    def timezone(self, tz: str):
+        """Set the named timzone of the asset"""
+
+        timezone = Foundation.NSTimeZone.timeZoneWithName_(tz)
+        if not timezone:
+            raise ValueError(f"Invalid timezone: {tz}")
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            date = change_request.creationDate()
+            change_request.setTimeZone_withDate_(timezone, date)
+
+        self._perform_changes(change_request_handler)
+
+    @property
     def location(self) -> tuple[float, float] | None:
         """location of the asset as a tuple of (latitude, longitude) or None if no location"""
         self._refresh()
