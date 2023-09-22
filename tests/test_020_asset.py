@@ -202,8 +202,10 @@ def test_asset_date_modified(asset: photokit.PhotoAsset):
 
 
 def test_asset_location(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInfo):
-    """Test asset.location"""
+    """Test asset.location setter & getter"""
     assert asset.location == expected.location
+    asset.location = (-33.0, -117.0)
+    assert asset.location == (-33.0, -117.0)
 
 
 def test_asset_duration_photo(asset: photokit.PhotoAsset):

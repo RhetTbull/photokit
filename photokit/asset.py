@@ -46,13 +46,9 @@ if TYPE_CHECKING:
 #   Happy to accept PRs from someone who knows PyObjC better than me and can
 #   find a cleaner way to do this!
 
-# TODO:
 # BUG: LivePhotoAsset.export always exports edited version if Live Photo has been edited, even if other version requested
 # add original=False to export instead of version= (and maybe others like path())
 # make burst/live methods get uuid from self instead of passing as arg
-
-# TODO: implement this on photoasset:
-# fetchAssetCollectionsContainingAsset:withType:options:
 
 # NOTE: This requires user have granted access to the terminal (e.g. Terminal.app or iTerm)
 # to access Photos.  This should happen automatically the first time it's called. I've
@@ -61,6 +57,11 @@ if TYPE_CHECKING:
 # In the case where permission to use Photos was removed or reset, it looks like you also need
 # to remove permission to for Full Disk Access then re-run the script in order for Photos to
 # re-ask for permission
+
+# TODO: implement this on photoasset:
+# fetchAssetCollectionsContainingAsset:withType:options:
+# TODO: Add reverseLocationData
+# TODO: Move exporter code to separate class/file?
 
 
 ### helper classes
@@ -292,8 +293,37 @@ class PhotoAsset(Asset):
     @property
     def location(self) -> tuple[float, float] | None:
         """location of the asset as a tuple of (latitude, longitude) or None if no location"""
+        self._refresh()
         cllocation = self.phasset.location()
         return cllocation.coordinate() if cllocation else None
+
+    @location.setter
+    def location(self, latlon: tuple[float, float]):
+        """Set location of asset to lat, lon"""
+
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitChangeError(f"Error changing asset: {error}")
+                event.set()
+
+            def location_changes_handler():
+                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
+                    self.phasset
+                )
+                location = Foundation.CLLocation.alloc().initWithLatitude_longitude_(
+                    latlon[0], latlon[1]
+                )
+                change_request.setLocation_(location)
+
+            self._library._phphotolibrary.performChanges_completionHandler_(
+                lambda: location_changes_handler(), completion_handler
+            )
+
+            event.wait()
+            self._refresh()
 
     @property
     def duration(self) -> float:
