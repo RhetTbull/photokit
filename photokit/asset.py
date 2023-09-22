@@ -421,10 +421,7 @@ class PhotoAsset(Asset):
     def keywords(self) -> list[str]:
         """Keywords associated with asset"""
         keywords = Photos.PHKeyword.fetchKeywordsForAsset_options_(self.phasset, None)
-        keyword_list = []
-        for idx in range(keywords.count()):
-            keyword_list.append(keywords.objectAtIndex_(idx).title())
-        return keyword_list
+        return [keywords.objectAtIndex_(idx).title() for idx in range(keywords.count())]
 
     @keywords.setter
     def keywords(self, keywords: list[str]):
@@ -449,28 +446,12 @@ class PhotoAsset(Asset):
                 kw for kw in current_phkeywords if kw not in new_phkeywords
             ]
 
-            event = threading.Event()
-
-            # Create an asset representation of the image file
-            def completion_handler(success, error):
-                if error:
-                    raise PhotoKitChangeError(f"Error changing asset: {error}")
-                event.set()
-
-            def keyword_changes_handler():
-                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
-                    self.phasset
-                )
+            def change_request_handler(change_request: Photos.PHAssetChangeRequest):
                 change_request.addKeywords_(new_phkeywords)
                 if phkeywords_to_remove:
                     change_request.removeKeywords_(phkeywords_to_remove)
 
-            self._library._phphotolibrary.performChanges_completionHandler_(
-                lambda: keyword_changes_handler(), completion_handler
-            )
-
-            event.wait()
-        self._refresh()
+            self._perform_changes(change_request_handler)
 
     # Not working yet
     # @property
