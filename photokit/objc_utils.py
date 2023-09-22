@@ -28,3 +28,8 @@ def path_to_NSURL(path: str | pathlib.Path | os.PathLike) -> Foundation.NSURL:
 def NSDate_to_datetime(nsdate: Foundation.NSDate) -> datetime.datetime:
     """Convert NSDate to datetime.datetime"""
     return datetime.datetime.fromtimestamp(nsdate.timeIntervalSince1970())
+
+
+def datetime_to_NSDate(dt: datetime.datetime) -> Foundation.NSDate:
+    """Convert datetime.datetime to NSDate"""
+    return Foundation.NSDate.dateWithTimeIntervalSince1970_(dt.timestamp())

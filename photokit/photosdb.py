@@ -9,6 +9,14 @@ import sqlite3
 
 logger = logging.getLogger("photokit")
 
+import datetime
+
+# Time delta: add this to Photos times to get unix time
+# Apple Epoch is Jan 1, 2001
+TIME_DELTA = (
+    datetime.datetime(2001, 1, 1, 0, 0) - datetime.datetime(1970, 1, 1, 0, 0)
+).total_seconds()
+
 
 class PhotosDB:
     """Access the Photos SQLite database directly."""
@@ -113,3 +121,30 @@ class PhotosDB:
         results = cursor.fetchall()
         cursor.close()
         return [r[0] for r in results]
+
+    def get_date_added_for_uuid(self, uuid: str) -> datetime.datetime:
+        """Get date added for an asset from the Photos database.
+
+        Args:
+            uuid: UUID of the asset
+
+        Returns: datetime.datetime
+        """
+        query = """
+            SELECT ZADDEDDATE
+            FROM ZASSET
+            WHERE ZUUID = ?;
+            """
+        logger.debug(f"query = {query}")
+
+        cursor = self.connection.cursor()
+        cursor.execute(query, (uuid,))
+        results = cursor.fetchone()
+        cursor.close()
+        if not results:
+            return datetime.datetime(1970, 1, 1, 0, 0, 0)
+        try:
+            return datetime.datetime.fromtimestamp(results[0] + TIME_DELTA)
+        except (ValueError, TypeError):
+            # I've seen corrupt values in the Photos database
+            return datetime.datetime(1970, 1, 1, 0, 0, 0)

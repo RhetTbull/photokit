@@ -191,14 +191,24 @@ def test_asset_pixel_width_height(asset: photokit.PhotoAsset):
 
 
 def test_asset_date(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInfo):
-    """Test asset.date"""
+    """Test asset.date getter and setter"""
     assert asset.date == datetime_remove_tz(expected.date)
+    asset.date = datetime.datetime(2021, 1, 1, 0, 0, 0)
+    assert asset.date == datetime.datetime(2021, 1, 1, 0, 0, 0)
 
 
 def test_asset_date_modified(asset: photokit.PhotoAsset):
-    """Test asset.date_modified"""
-    # unlike osxphotos.date_modified which returns None if photo has not been modified
+    """Test asset.date_modified getter and setter"""
     assert isinstance(asset.date_modified, datetime.datetime)
+    asset.date_modified = datetime.datetime(2021, 1, 1, 0, 0, 0)
+    assert asset.date_modified == datetime.datetime(2021, 1, 1, 0, 0, 0)
+
+
+def test_asset_date_added(asset: photokit.PhotoAsset):
+    """Test asset.date_added getter and setter"""
+    assert isinstance(asset.date_added, datetime.datetime)
+    asset.date_added = datetime.datetime(2021, 1, 1, 0, 0, 0)
+    assert asset.date_added == datetime.datetime(2021, 1, 1, 0, 0, 0)
 
 
 def test_asset_location(asset: photokit.PhotoAsset, expected: osxphotos.PhotoInfo):

@@ -7,7 +7,7 @@ import datetime
 import pathlib
 import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import AVFoundation
 import Foundation
@@ -32,7 +32,12 @@ from .exceptions import (
     PhotoKitMediaTypeError,
 )
 from .fileutil import FileUtil
-from .objc_utils import NSDate_to_datetime, NSURL_to_path, path_to_NSURL
+from .objc_utils import (
+    NSDate_to_datetime,
+    NSURL_to_path,
+    datetime_to_NSDate,
+    path_to_NSURL,
+)
 from .uti import get_preferred_uti_extension
 from .utils import increment_filename
 
@@ -62,6 +67,7 @@ if TYPE_CHECKING:
 # fetchAssetCollectionsContainingAsset:withType:options:
 # TODO: Add reverseLocationData
 # TODO: Move exporter code to separate class/file?
+# TODO: add - (void)setTimeZone:(id)arg1 withDate:(id)arg2; for timewarp
 
 
 ### helper classes
@@ -285,10 +291,47 @@ class PhotoAsset(Asset):
         """date asset was created as a naive datetime.datetime"""
         return NSDate_to_datetime(self.phasset.creationDate())
 
+    @date.setter
+    def date(self, date: datetime.datetime):
+        """Set date asset was created"""
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            creation_date = datetime_to_NSDate(date)
+            change_request.setCreationDate_(creation_date)
+
+        self._perform_changes(change_request_handler)
+
     @property
     def date_modified(self) -> datetime.datetime:
         """date asset was modified as a naive datetime.datetime"""
         return NSDate_to_datetime(self.phasset.modificationDate())
+
+    @date_modified.setter
+    def date_modified(self, date: datetime.datetime):
+        """Set date asset was modified"""
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            modification_date = datetime_to_NSDate(date)
+            change_request.setModificationDate_(modification_date)
+
+        self._perform_changes(change_request_handler)
+
+    @property
+    def date_added(self) -> datetime.datetime:
+        """date asset was added to the library as a naive datetime.datetime"""
+        # as best as I can tell there is no property to retrieve the date added
+        # so get it from the database
+        return self._library._photosdb.get_date_added_for_uuid(self.uuid)
+
+    @date_added.setter
+    def date_added(self, date: datetime.datetime):
+        """Set date asset was added to the library"""
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            added_date = datetime_to_NSDate(date)
+            change_request.setAddedDate_(added_date)
+
+        self._perform_changes(change_request_handler)
 
     @property
     def location(self) -> tuple[float, float] | None:
@@ -301,29 +344,13 @@ class PhotoAsset(Asset):
     def location(self, latlon: tuple[float, float]):
         """Set location of asset to lat, lon"""
 
-        with objc.autorelease_pool():
-            event = threading.Event()
-
-            def completion_handler(success, error):
-                if error:
-                    raise PhotoKitChangeError(f"Error changing asset: {error}")
-                event.set()
-
-            def location_changes_handler():
-                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
-                    self.phasset
-                )
-                location = Foundation.CLLocation.alloc().initWithLatitude_longitude_(
-                    latlon[0], latlon[1]
-                )
-                change_request.setLocation_(location)
-
-            self._library._phphotolibrary.performChanges_completionHandler_(
-                lambda: location_changes_handler(), completion_handler
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            location = Foundation.CLLocation.alloc().initWithLatitude_longitude_(
+                latlon[0], latlon[1]
             )
+            change_request.setLocation_(location)
 
-            event.wait()
-            self._refresh()
+        self._perform_changes(change_request_handler)
 
     @property
     def duration(self) -> float:
@@ -342,26 +369,10 @@ class PhotoAsset(Asset):
         if self.favorite == value:
             return
 
-        with objc.autorelease_pool():
-            event = threading.Event()
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            change_request.setFavorite_(value)
 
-            def completion_handler(success, error):
-                if error:
-                    raise PhotoKitChangeError(f"Error changing asset: {error}")
-                event.set()
-
-            def favorite_changes_handler():
-                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
-                    self.phasset
-                )
-                change_request.setFavorite_(value)
-
-            self._library._phphotolibrary.performChanges_completionHandler_(
-                lambda: favorite_changes_handler(), completion_handler
-            )
-
-            event.wait()
-        self._refresh()
+        self._perform_changes(change_request_handler)
 
     @property
     def hidden(self):
@@ -421,6 +432,7 @@ class PhotoAsset(Asset):
             )
 
             event.wait()
+        self._refresh()
 
     # Not working yet
     # @property
@@ -505,6 +517,36 @@ class PhotoAsset(Asset):
         # this shouldn't be necessary but sometimes after creating a change (for example, toggling favorite)
         # the properties do not refresh
         self._phasset = self._library.asset(self.uuid)._phasset
+
+    def _perform_changes(
+        self, change_request_handler: Callable[[Photos.PHAssetChangeRequest], None]
+    ):
+        """Perform changes on a PHAsset
+
+        Args:
+            change_request_handler: a callable that will be passed the PHAssetChangeRequest to perform changes
+        """
+
+        with objc.autorelease_pool():
+            event = threading.Event()
+
+            def completion_handler(success, error):
+                if error:
+                    raise PhotoKitChangeError(f"Error changing asset: {error}")
+                event.set()
+
+            def _change_request_handler():
+                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
+                    self.phasset
+                )
+                change_request_handler(change_request)
+
+            self._library._phphotolibrary.performChanges_completionHandler_(
+                lambda: _change_request_handler(), completion_handler
+            )
+
+            event.wait()
+            self._refresh()
 
     def export(
         self,
