@@ -1,6 +1,5 @@
 """Python package for accessing the macOS Photos.app library via Apple's native PhotoKit framework."""
 
-__version__ = "0.1.2"
 import logging
 
 from .album import Album
@@ -22,6 +21,8 @@ from .photolibrary import PhotoLibrary
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
 )
+
+__version__ = "0.1.3"
 
 __all__ = [
     "Album",
