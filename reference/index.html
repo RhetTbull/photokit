@@ -6588,7 +6588,14 @@ created with py2app, etc.  It has not yet been well tested.</p>
 <span class="normal">809</span>
 <span class="normal">810</span>
 <span class="normal">811</span>
-<span class="normal">812</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PhotoAsset</span><span class="p">(</span><span class="n">Asset</span><span class="p">):</span>
+<span class="normal">812</span>
+<span class="normal">813</span>
+<span class="normal">814</span>
+<span class="normal">815</span>
+<span class="normal">816</span>
+<span class="normal">817</span>
+<span class="normal">818</span>
+<span class="normal">819</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PhotoAsset</span><span class="p">(</span><span class="n">Asset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;PhotoKit PHAsset representation&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">library</span><span class="p">:</span> <span class="n">PhotoLibrary</span><span class="p">,</span> <span class="n">phasset</span><span class="p">:</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAsset</span><span class="p">):</span>
@@ -6844,16 +6851,23 @@ created with py2app, etc.  It has not yet been well tested.</p>
         <span class="k">return</span> <span class="n">cllocation</span><span class="o">.</span><span class="n">coordinate</span><span class="p">()</span> <span class="k">if</span> <span class="n">cllocation</span> <span class="k">else</span> <span class="kc">None</span>
 
     <span class="nd">@location</span><span class="o">.</span><span class="n">setter</span>
-    <span class="k">def</span> <span class="nf">location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latlon</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set location of asset to lat, lon&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latlon</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set location of asset to lat, lon or None&quot;&quot;&quot;</span>
 
-        <span class="k">def</span> <span class="nf">change_request_handler</span><span class="p">(</span><span class="n">change_request</span><span class="p">:</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetChangeRequest</span><span class="p">):</span>
-            <span class="n">location</span> <span class="o">=</span> <span class="n">Foundation</span><span class="o">.</span><span class="n">CLLocation</span><span class="o">.</span><span class="n">alloc</span><span class="p">()</span><span class="o">.</span><span class="n">initWithLatitude_longitude_</span><span class="p">(</span>
-                <span class="n">latlon</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">latlon</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="p">)</span>
-            <span class="n">change_request</span><span class="o">.</span><span class="n">setLocation_</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">objc</span><span class="o">.</span><span class="n">autorelease_pool</span><span class="p">():</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_perform_changes</span><span class="p">(</span><span class="n">change_request_handler</span><span class="p">)</span>
+            <span class="k">def</span> <span class="nf">change_request_handler</span><span class="p">(</span><span class="n">change_request</span><span class="p">:</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetChangeRequest</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">latlon</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">location</span> <span class="o">=</span> <span class="n">Foundation</span><span class="o">.</span><span class="n">CLLocation</span><span class="o">.</span><span class="n">alloc</span><span class="p">()</span><span class="o">.</span><span class="n">init</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">location</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">Foundation</span><span class="o">.</span><span class="n">CLLocation</span><span class="o">.</span><span class="n">alloc</span><span class="p">()</span><span class="o">.</span><span class="n">initWithLatitude_longitude_</span><span class="p">(</span>
+                            <span class="n">latlon</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">latlon</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                        <span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="n">change_request</span><span class="o">.</span><span class="n">setLocation_</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_perform_changes</span><span class="p">(</span><span class="n">change_request_handler</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">duration</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
@@ -8320,14 +8334,7 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">570</span>
-<span class="normal">571</span>
-<span class="normal">572</span>
-<span class="normal">573</span>
-<span class="normal">574</span>
-<span class="normal">575</span>
-<span class="normal">576</span>
-<span class="normal">577</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">577</span>
 <span class="normal">578</span>
 <span class="normal">579</span>
 <span class="normal">580</span>
@@ -8414,7 +8421,14 @@ Returns False if no adjustments, True if any adjustments</p>
 <span class="normal">661</span>
 <span class="normal">662</span>
 <span class="normal">663</span>
-<span class="normal">664</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">dest</span><span class="p">,</span>
     <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -8562,14 +8576,14 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return dict of asset metadata</span>
 
 <span class="sd">    Args:</span>
@@ -8630,14 +8644,14 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">515</span>
-<span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span>
-<span class="normal">522</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">orientation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">orientation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return orientation of asset</span>
 
 <span class="sd">    Args:</span>
@@ -8698,15 +8712,15 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return path of asset</span>
 
 <span class="sd">    Args:</span>
@@ -8768,14 +8782,14 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">496</span>
-<span class="normal">497</span>
-<span class="normal">498</span>
-<span class="normal">499</span>
-<span class="normal">500</span>
-<span class="normal">501</span>
-<span class="normal">502</span>
-<span class="normal">503</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">url</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return URL of asset</span>
 
 <span class="sd">    Args:</span>
@@ -8836,14 +8850,14 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">uti</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">uti</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="n">PHImageRequestOptionsVersionCurrent</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return UTI of asset</span>
 
 <span class="sd">    Args:</span>
@@ -8875,16 +8889,16 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">492</span>
 <span class="normal">493</span>
-<span class="normal">494</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">uti_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">uti_raw</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return UTI of RAW component of RAW+JPEG pair&quot;&quot;&quot;</span>
     <span class="n">resources</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resources</span><span class="p">()</span>
     <span class="k">for</span> <span class="n">resource</span> <span class="ow">in</span> <span class="n">resources</span><span class="p">:</span>
@@ -8923,14 +8937,7 @@ Returns False if no adjustments, True if any adjustments</p>
 
             <details class="quote">
               <summary>Source code in <code>photokit/asset.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1137</span>
-<span class="normal">1138</span>
-<span class="normal">1139</span>
-<span class="normal">1140</span>
-<span class="normal">1141</span>
-<span class="normal">1142</span>
-<span class="normal">1143</span>
-<span class="normal">1144</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1144</span>
 <span class="normal">1145</span>
 <span class="normal">1146</span>
 <span class="normal">1147</span>
@@ -9018,7 +9025,14 @@ Returns False if no adjustments, True if any adjustments</p>
 <span class="normal">1229</span>
 <span class="normal">1230</span>
 <span class="normal">1231</span>
-<span class="normal">1232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">LivePhotoAsset</span><span class="p">(</span><span class="n">PhotoAsset</span><span class="p">):</span>
+<span class="normal">1232</span>
+<span class="normal">1233</span>
+<span class="normal">1234</span>
+<span class="normal">1235</span>
+<span class="normal">1236</span>
+<span class="normal">1237</span>
+<span class="normal">1238</span>
+<span class="normal">1239</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">LivePhotoAsset</span><span class="p">(</span><span class="n">PhotoAsset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Represents a live photo&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
@@ -9277,14 +9291,7 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1140</span>
-<span class="normal">1141</span>
-<span class="normal">1142</span>
-<span class="normal">1143</span>
-<span class="normal">1144</span>
-<span class="normal">1145</span>
-<span class="normal">1146</span>
-<span class="normal">1147</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1147</span>
 <span class="normal">1148</span>
 <span class="normal">1149</span>
 <span class="normal">1150</span>
@@ -9369,7 +9376,14 @@ Returns False if no adjustments, True if any adjustments</p>
 <span class="normal">1229</span>
 <span class="normal">1230</span>
 <span class="normal">1231</span>
-<span class="normal">1232</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
+<span class="normal">1232</span>
+<span class="normal">1233</span>
+<span class="normal">1234</span>
+<span class="normal">1235</span>
+<span class="normal">1236</span>
+<span class="normal">1237</span>
+<span class="normal">1238</span>
+<span class="normal">1239</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">dest</span><span class="p">,</span>
     <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -9491,14 +9505,7 @@ Returns False if no adjustments, True if any adjustments</p>
 
             <details class="quote">
               <summary>Source code in <code>photokit/asset.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 883</span>
-<span class="normal"> 884</span>
-<span class="normal"> 885</span>
-<span class="normal"> 886</span>
-<span class="normal"> 887</span>
-<span class="normal"> 888</span>
-<span class="normal"> 889</span>
-<span class="normal"> 890</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 890</span>
 <span class="normal"> 891</span>
 <span class="normal"> 892</span>
 <span class="normal"> 893</span>
@@ -9668,7 +9675,14 @@ Returns False if no adjustments, True if any adjustments</p>
 <span class="normal">1057</span>
 <span class="normal">1058</span>
 <span class="normal">1059</span>
-<span class="normal">1060</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">VideoAsset</span><span class="p">(</span><span class="n">PhotoAsset</span><span class="p">):</span>
+<span class="normal">1060</span>
+<span class="normal">1061</span>
+<span class="normal">1062</span>
+<span class="normal">1063</span>
+<span class="normal">1064</span>
+<span class="normal">1065</span>
+<span class="normal">1066</span>
+<span class="normal">1067</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">VideoAsset</span><span class="p">(</span><span class="n">PhotoAsset</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;PhotoKit PHAsset representation of video asset&quot;&quot;&quot;</span>
 
     <span class="c1"># TODO: doesn&#39;t work for slow-mo videos</span>
@@ -9983,14 +9997,7 @@ Returns False if no adjustments, True if any adjustments</p>
 
           <details class="quote">
             <summary>Source code in <code>photokit/asset.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">891</span>
-<span class="normal">892</span>
-<span class="normal">893</span>
-<span class="normal">894</span>
-<span class="normal">895</span>
-<span class="normal">896</span>
-<span class="normal">897</span>
-<span class="normal">898</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">898</span>
 <span class="normal">899</span>
 <span class="normal">900</span>
 <span class="normal">901</span>
@@ -10047,7 +10054,14 @@ Returns False if no adjustments, True if any adjustments</p>
 <span class="normal">952</span>
 <span class="normal">953</span>
 <span class="normal">954</span>
-<span class="normal">955</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
+<span class="normal">955</span>
+<span class="normal">956</span>
+<span class="normal">957</span>
+<span class="normal">958</span>
+<span class="normal">959</span>
+<span class="normal">960</span>
+<span class="normal">961</span>
+<span class="normal">962</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">export</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">dest</span><span class="p">,</span>
     <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
