@@ -360,15 +360,16 @@ class PhotoAsset(Asset):
     def timezone(self, tz: str):
         """Set the named timzone of the asset"""
 
-        timezone = Foundation.NSTimeZone.timeZoneWithName_(tz)
-        if not timezone:
-            raise ValueError(f"Invalid timezone: {tz}")
+        with objc.autorelease_pool():
+            timezone = Foundation.NSTimeZone.timeZoneWithName_(tz)
+            if not timezone:
+                raise ValueError(f"Invalid timezone: {tz}")
 
-        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
-            date = change_request.creationDate()
-            change_request.setTimeZone_withDate_(timezone, date)
+            def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+                date = change_request.creationDate()
+                change_request.setTimeZone_withDate_(timezone, date)
 
-        self._perform_changes(change_request_handler)
+            self._perform_changes(change_request_handler)
 
     @property
     def location(self) -> tuple[float, float] | None:
