@@ -107,9 +107,44 @@ This project is licensed under the terms of the MIT license.
 - [x] fetch_or_create_album() (renamed to album())
 - [x] count(), __len__
 
-### Asset
-
 ### PhotoAsset
+
+- [x] keywords getter/setter
+- [x] isphoto
+- [x] ismovie
+- [x] isaudio
+- [x] original_filename
+- [x] uuid
+- [x] raw_filename
+- [x] hasadjustments
+- [x] media_type
+- [x] media_subtypes
+- [x] favorite (getter/setter)
+- [x] panorama
+- [x] hdr
+- [x] screenshot
+- [x] live
+- [x] streamed
+- [x] slow_mo
+- [x] time_lapse
+- [x] portrait
+- [x] burst
+- [x] source_type
+- [x] pixel_width
+- [x] pixel_height
+- [x] date (created; setter/getter)
+- [x] date_modified (setter/getter)
+- [x] date_added (setter/getter)
+- [x] timezone_offset (setter/getter)
+- [x] timezone (setter/getter)
+- [x] location (setter/getter)
+- [x] duration
+- [ ] orientation
+- [ ] title (getter/setter)
+- [ ] description (getter/setter)
+- [ ] burst_photos
+- [ ] burst_uuid
+- [ ] export (implemented, not yet tested)
 
 ### VideoAsset
 
