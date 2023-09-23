@@ -760,6 +760,43 @@ class PhotoLibrary:
             else:
                 raise PhotoKitCreateKeywordError(f"Error creating keyword {keyword}")
 
+    def smart_album(self, album_name: str, hidden: bool = False) -> Album:
+        """Get system smart album with given name (does not fetch user smart albums)
+
+        Args:
+            album_name: name of smart album to fetch
+            hidden: if True, fetch hidden smart albums
+
+        Returns: Album object for smart album
+
+        Raises:
+            PhotoKitFetchFailed if fetch failed (album not found)
+        """
+
+        if PhotoLibrary.multi_library_mode():
+            raise NotImplementedError(
+                "Fetching smart albums not implemented in multi-library mode"
+            )
+
+        # single library mode
+        subtype = Photos.PHAssetCollectionSubtypeSmartAlbumAllHidden if hidden else 0
+        with objc.autorelease_pool():
+            albums = (
+                Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
+                    Photos.PHAssetCollectionTypeSmartAlbum,
+                    subtype,
+                    None,
+                )
+            )
+
+            for i in range(albums.count()):
+                album = albums.objectAtIndex_(i)
+                if album.localizedTitle() == album_name:
+                    return Album(self, album)
+            raise PhotoKitFetchFailed(
+                f"Fetch did not return result for album {album_name}"
+            )
+
     def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
         """Get albums from list of uuids
 

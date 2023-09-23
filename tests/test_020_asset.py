@@ -260,3 +260,27 @@ def test_asset_favorite(asset: photokit.PhotoAsset):
     assert not asset.favorite
     asset.favorite = True
     assert asset.favorite
+
+
+def test_asset_hidden(asset: photokit.PhotoAsset, pytestconfig):
+    """Test asset.hidden getter & setter"""
+    assert not asset.hidden
+
+    # store filename as can't access asset once hidden
+    filename = asset.original_filename
+
+    # user will be prompted to hide photo
+    asset.hidden = True
+
+    # prompt user to unhide photo
+    capmanager = pytestconfig.pluginmanager.getplugin("capturemanager")
+    capmanager.suspend_global_capture(in_=True)
+    answer = "n"
+    # sourcery skip: no-loop-in-tests
+    while answer.lower() not in ["y", "yes"]:
+        answer = input(
+            f"Open Hidden album and unhide photo {filename}. Press y when done: "
+        )
+    capmanager.resume_global_capture()
+
+    assert not asset.hidden

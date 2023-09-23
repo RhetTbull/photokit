@@ -67,7 +67,6 @@ if TYPE_CHECKING:
 # fetchAssetCollectionsContainingAsset:withType:options:
 # TODO: Add reverseLocationData
 # TODO: Move exporter code to separate class/file?
-# TODO: add - (void)setTimeZone:(id)arg1 withDate:(id)arg2; for timewarp
 
 
 ### helper classes
@@ -411,8 +410,6 @@ class PhotoAsset(Asset):
     @favorite.setter
     def favorite(self, value: bool):
         """Set or clear favorite status of asset"""
-        if self.favorite == value:
-            return
 
         def change_request_handler(change_request: Photos.PHAssetChangeRequest):
             change_request.setFavorite_(value)
@@ -423,6 +420,15 @@ class PhotoAsset(Asset):
     def hidden(self):
         """True if asset is hidden, otherwise False"""
         return self.phasset.isHidden()
+
+    @hidden.setter
+    def hidden(self, value: bool):
+        """Set or clear hidden status of asset; note that toggling hidden may requre user confirmation"""
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            change_request.setHidden_(value)
+
+        self._perform_changes(change_request_handler, refresh=False)
 
     @property
     def keywords(self) -> list[str]:
@@ -545,12 +551,15 @@ class PhotoAsset(Asset):
         self._phasset = self._library.asset(self.uuid)._phasset
 
     def _perform_changes(
-        self, change_request_handler: Callable[[Photos.PHAssetChangeRequest], None]
+        self,
+        change_request_handler: Callable[[Photos.PHAssetChangeRequest], None],
+        refresh: bool = True,
     ):
         """Perform changes on a PHAsset
 
         Args:
             change_request_handler: a callable that will be passed the PHAssetChangeRequest to perform changes
+            refresh: if True, refresh the asset from the library after performing changes (default is True)
         """
 
         with objc.autorelease_pool():
@@ -572,7 +581,9 @@ class PhotoAsset(Asset):
             )
 
             event.wait()
-            self._refresh()
+
+            if refresh:
+                self._refresh()
 
     def export(
         self,
