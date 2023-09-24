@@ -16,7 +16,7 @@ from .exceptions import (
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
-from .photolibrary import PhotoLibrary
+from .photolibrary import PhotoLibrary, PhotoLibrarySmartAlbumType
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
@@ -39,5 +39,6 @@ __all__ = [
     "PhotoKitImportError",
     "PhotoKitMediaTypeError",
     "PhotoLibrary",
+    "PhotoLibrarySmartAlbumType",
     "VideoAsset",
 ]

@@ -8,6 +8,8 @@ import osxphotos
 import pytest
 from osxphotos.utils import get_system_library_path
 
+from photokit import PhotoLibrarySmartAlbumType
+
 
 @pytest.fixture(scope="session")
 def photosdb() -> osxphotos.PhotosDB:
@@ -36,9 +38,41 @@ def photo_count(pytestconfig) -> tuple[int, int]:
     yield photos, videos
 
 
+# @pytest.fixture(scope="session")
+# def smart_album_count(pytestconfig) -> dict[PhotoLibrarySmartAlbumType, int]:
+#     """Ask user for number of photos in Photos library smart albums"""
+#     capmanager = pytestconfig.pluginmanager.getplugin("capturemanager")
+
+#     smart_albums = {}
+#     capmanager.suspend_global_capture(in_=True)
+#     for smart_album in PhotoLibrarySmartAlbumType:
+#         count = input(
+#             f"\nEnter total number of photos in smart album {smart_album.name}: "
+#         )
+#         smart_albums[smart_album] = int(count.strip().replace(",", ""))
+#     capmanager.resume_global_capture()
+
+#     return smart_albums
+
+
+@pytest.fixture(scope="session")
+def user_smart_album(pytestconfig) -> tuple[int, int]:
+    """Ask user for number of photos in Photos library"""
+    capmanager = pytestconfig.pluginmanager.getplugin("capturemanager")
+
+    capmanager.suspend_global_capture(in_=True)
+    smart_album = input(
+        "\nEnter the name of a user smart album (or press Enter if no user smart albums): "
+    )
+    capmanager.resume_global_capture()
+
+    smart_album = smart_album.strip()
+    return smart_album
+
+
 @pytest.fixture(scope="session")
 def asset_photo() -> str:
-    """Retur path to photo asset for import tests"""
+    """Return path to photo asset for import tests"""
     cwd = os.getcwd()
     return os.path.join(cwd, "tests", "assets", "test_photo.JPG")
 

@@ -11,6 +11,8 @@ import pytest
 from osxphotos.utils import get_system_library_path
 
 import photokit
+from photokit import PhotoLibrarySmartAlbumType
+from photokit.album import Album
 from photokit.asset import LivePhotoAsset, PhotoAsset, VideoAsset
 from photokit.exceptions import PhotoKitFetchFailed
 
@@ -270,3 +272,30 @@ def test_photolibrary_album_create_delete():
     time.sleep(1)
     with pytest.raises(PhotoKitFetchFailed):
         library.album(album_uuid)
+
+
+def test_smart_album_type():
+    """Test PhotoLibrary().smart_album() method with album_type; may fail if user has no videos in library"""
+    library = photokit.PhotoLibrary()
+    videos = library.smart_album(album_type=PhotoLibrarySmartAlbumType.Videos)
+    assert isinstance(videos, Album)
+
+
+def test_smart_album_name():
+    """Test PhotoLibrary().smart_album() method with album_name;
+    may fail if user has no videos in library or Videos album is not named "Videos" in user's locale
+    """
+    library = photokit.PhotoLibrary()
+    videos = library.smart_album(album_name="Videos")
+    assert isinstance(videos, Album)
+
+
+def test_smart_album_name_user(user_smart_album: str):
+    """Test PhotoLibrary().smart_album() method with album_name and user=True"""
+    # TODO: need a fixture to skip this test if user has no user smart albums
+    if user_smart_album:
+        library = photokit.PhotoLibrary()
+        album = library.smart_album(album_name=user_smart_album, user=True)
+        assert isinstance(album, Album)
+    else:
+        assert True

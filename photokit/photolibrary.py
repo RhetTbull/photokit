@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import enum
 import logging
 import os
 import pathlib
@@ -39,6 +40,31 @@ _global_single_library_mode = True
 
 # TODO: burst: includeAllBurstAssets
 # https://developer.apple.com/documentation/photokit/phfetchoptions/1624786-includeallburstassets?language=objc
+
+
+class PhotoLibrarySmartAlbumType(enum.Enum):
+    """Smart album types"""
+
+    # reference: https://developer.apple.com/documentation/photokit/phassetcollectionsubtype?language=objc
+    Favorites = Photos.PHAssetCollectionSubtypeSmartAlbumFavorites
+    Hidden = Photos.PHAssetCollectionSubtypeSmartAlbumAllHidden
+    Animated = Photos.PHAssetCollectionSubtypeSmartAlbumAnimated
+    Bursts = Photos.PHAssetCollectionSubtypeSmartAlbumBursts
+    Cinematics = Photos.PHAssetCollectionSubtypeSmartAlbumCinematic
+    Portraits = Photos.PHAssetCollectionSubtypeSmartAlbumDepthEffect
+    Generic = Photos.PHAssetCollectionSubtypeSmartAlbumGeneric
+    LivePhotos = Photos.PHAssetCollectionSubtypeSmartAlbumLivePhotos
+    LongExposures = Photos.PHAssetCollectionSubtypeSmartAlbumLongExposures
+    Panoramas = Photos.PHAssetCollectionSubtypeSmartAlbumPanoramas
+    RAW = Photos.PHAssetCollectionSubtypeSmartAlbumRAW
+    RecentlyAdded = Photos.PHAssetCollectionSubtypeSmartAlbumRecentlyAdded
+    Screenshots = Photos.PHAssetCollectionSubtypeSmartAlbumScreenshots
+    Selfies = Photos.PHAssetCollectionSubtypeSmartAlbumSelfPortraits
+    SlowMos = Photos.PHAssetCollectionSubtypeSmartAlbumSlomoVideos
+    TimeLapses = Photos.PHAssetCollectionSubtypeSmartAlbumTimelapses
+    UnableToUload = Photos.PHAssetCollectionSubtypeSmartAlbumUnableToUpload
+    UserLibrary = Photos.PHAssetCollectionSubtypeSmartAlbumUserLibrary
+    Videos = Photos.PHAssetCollectionSubtypeSmartAlbumVideos
 
 
 class PhotoLibrary:
@@ -760,17 +786,84 @@ class PhotoLibrary:
             else:
                 raise PhotoKitCreateKeywordError(f"Error creating keyword {keyword}")
 
-    def smart_album(self, album_name: str, hidden: bool = False) -> Album:
-        """Get system smart album with given name (does not fetch user smart albums)
+    def smart_album(
+        self,
+        album_name: str | None = None,
+        album_type: PhotoLibrarySmartAlbumType | None = None,
+        user: bool = False,
+    ) -> Album:
+        """Get smart album with given name
 
         Args:
             album_name: name of smart album to fetch
-            hidden: if True, fetch hidden smart albums
+            album_type: PhotoLibrarySmartAlbumType of smart album to fetch
+            user: if True, fetch user smart album instead of system smart album
 
         Returns: Album object for smart album
 
         Raises:
             PhotoKitFetchFailed if fetch failed (album not found)
+            ValueError if both album_name and album_type are None or both are not None
+
+        Note: This only works in single library mode. If more than one album has the same name,
+        the first one found will be returned but no guarantee is made as to which one.
+        """
+
+        if PhotoLibrary.multi_library_mode():
+            raise NotImplementedError(
+                "Fetching smart albums not implemented in multi-library mode"
+            )
+
+        if (album_name and album_type) or (not album_name and not album_type):
+            raise ValueError(
+                f"Must pass one of album_name or album_type: {album_name=}, {album_type=}"
+            )
+
+        # single library mode
+        subtype = album_type.value if album_type else 0
+        with objc.autorelease_pool():
+            options = Photos.PHFetchOptions.alloc().init()
+            if user:
+                options.setIncludeUserSmartAlbums_(True)
+            albums = (
+                Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
+                    Photos.PHAssetCollectionTypeSmartAlbum,
+                    subtype,
+                    options,
+                )
+            )
+
+            # album type
+            if album_type:
+                if not albums.count():
+                    raise PhotoKitFetchFailed(
+                        f"Fetch did not return result for album_type {album_type}"
+                    )
+                return Album(self, albums.objectAtIndex_(0))
+
+            # album name
+            for i in range(albums.count()):
+                album = albums.objectAtIndex_(i)
+                if album.localizedTitle() == album_name and (
+                    not user or album.isUserSmartAlbum()
+                ):
+                    return Album(self, album)
+            raise PhotoKitFetchFailed(
+                f"Fetch did not return result for album {album_name}"
+            )
+
+    def smart_albums(self, user: bool = False) -> list[Album]:
+        """Get list of smart albums
+
+        Args:
+            user: if True, fetch user smart albums instead of system smart albums
+
+        Returns: list of Album objects for smart albums
+
+        Raises:
+            PhotoKitFetchFailed if fetch failed (album not found)
+
+        Note: This only works in single library mode
         """
 
         if PhotoLibrary.multi_library_mode():
@@ -779,23 +872,34 @@ class PhotoLibrary:
             )
 
         # single library mode
-        subtype = Photos.PHAssetCollectionSubtypeSmartAlbumAllHidden if hidden else 0
+        subtype = 0
         with objc.autorelease_pool():
+            options = Photos.PHFetchOptions.alloc().init()
+            if user:
+                options.setIncludeUserSmartAlbums_(True)
             albums = (
                 Photos.PHAssetCollection.fetchAssetCollectionsWithType_subtype_options_(
                     Photos.PHAssetCollectionTypeSmartAlbum,
                     subtype,
-                    None,
+                    options,
                 )
             )
 
+            album_list = []
             for i in range(albums.count()):
                 album = albums.objectAtIndex_(i)
-                if album.localizedTitle() == album_name:
-                    return Album(self, album)
-            raise PhotoKitFetchFailed(
-                f"Fetch did not return result for album {album_name}"
-            )
+                if user and not album.isUserSmartAlbum():
+                    continue
+                elif not user and album.isUserSmartAlbum():
+                    continue
+                album_list.append(Album(self, album))
+
+            if not album_list:
+                raise PhotoKitFetchFailed(
+                    f"Fetch did not return result for smart albums"
+                )
+
+            return album_list
 
     def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
         """Get albums from list of uuids
