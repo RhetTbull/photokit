@@ -43,7 +43,28 @@ _global_single_library_mode = True
 
 
 class PhotoLibrarySmartAlbumType(enum.Enum):
-    """Smart album types"""
+    """Smart album types.  The following are supported:
+    
+    - Favorites
+    - Hidden
+    - Animated
+    - Bursts
+    - Cinematics
+    - Portraits
+    - Generic
+    - LivePhotos
+    - LongExposures
+    - Panoramas
+    - RAW
+    - RecentlyAdded
+    - Screenshots
+    - Selfies
+    - SlowMos
+    - TimeLapses
+    - UnableToUload
+    - UserLibrary
+    - Videos
+    """
 
     # reference: https://developer.apple.com/documentation/photokit/phassetcollectionsubtype?language=objc
     Favorites = Photos.PHAssetCollectionSubtypeSmartAlbumFavorites
