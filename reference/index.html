@@ -446,6 +446,20 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#photolibrarysmartalbumtype" class="md-nav__link">
+    PhotoLibrarySmartAlbumType
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#photokit.PhotoLibrarySmartAlbumType" class="md-nav__link">
+    PhotoLibrarySmartAlbumType
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#photoasset" class="md-nav__link">
     PhotoAsset
   </a>
@@ -1147,6 +1161,20 @@
         <li class="md-nav__item">
   <a href="#photokit.PhotoLibrary.system_photo_library_path" class="md-nav__link">
     system_photo_library_path()
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#photolibrarysmartalbumtype" class="md-nav__link">
+    PhotoLibrarySmartAlbumType
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#photokit.PhotoLibrarySmartAlbumType" class="md-nav__link">
+    PhotoLibrarySmartAlbumType
   </a>
   
 </li>
@@ -6148,7 +6176,7 @@ created with py2app, etc.  It has not yet been well tested.</p>
         <tr>
           <td><code>album_type</code></td>
           <td>
-                <code><span title="photokit.photolibrary.PhotoLibrarySmartAlbumType">PhotoLibrarySmartAlbumType</span> | None</code>
+                <code><a class="autorefs autorefs-internal" title="photokit.photolibrary.PhotoLibrarySmartAlbumType" href="#photokit.PhotoLibrarySmartAlbumType">PhotoLibrarySmartAlbumType</a> | None</code>
           </td>
           <td>
             <div class="doc-md-description">
@@ -6501,6 +6529,89 @@ the first one found will be returned but no guarantee is made as to which one.</
   </div>
 
 </div>
+
+
+
+  </div>
+
+  </div>
+
+</div><h2 id="photolibrarysmartalbumtype">PhotoLibrarySmartAlbumType</h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<a id="photokit.PhotoLibrarySmartAlbumType"></a>
+  <div class="doc doc-contents first">
+          <p class="doc doc-class-bases">
+            Bases: <code><span title="enum.Enum">Enum</span></code></p>
+
+  
+      <p>Smart album types</p>
+
+            <details class="quote">
+              <summary>Source code in <code>photokit/photolibrary.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">PhotoLibrarySmartAlbumType</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Smart album types&quot;&quot;&quot;</span>
+
+    <span class="c1"># reference: https://developer.apple.com/documentation/photokit/phassetcollectionsubtype?language=objc</span>
+    <span class="n">Favorites</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumFavorites</span>
+    <span class="n">Hidden</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumAllHidden</span>
+    <span class="n">Animated</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumAnimated</span>
+    <span class="n">Bursts</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumBursts</span>
+    <span class="n">Cinematics</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumCinematic</span>
+    <span class="n">Portraits</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumDepthEffect</span>
+    <span class="n">Generic</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumGeneric</span>
+    <span class="n">LivePhotos</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumLivePhotos</span>
+    <span class="n">LongExposures</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumLongExposures</span>
+    <span class="n">Panoramas</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumPanoramas</span>
+    <span class="n">RAW</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumRAW</span>
+    <span class="n">RecentlyAdded</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumRecentlyAdded</span>
+    <span class="n">Screenshots</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumScreenshots</span>
+    <span class="n">Selfies</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumSelfPortraits</span>
+    <span class="n">SlowMos</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumSlomoVideos</span>
+    <span class="n">TimeLapses</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumTimelapses</span>
+    <span class="n">UnableToUload</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumUnableToUpload</span>
+    <span class="n">UserLibrary</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumUserLibrary</span>
+    <span class="n">Videos</span> <span class="o">=</span> <span class="n">Photos</span><span class="o">.</span><span class="n">PHAssetCollectionSubtypeSmartAlbumVideos</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+
+  
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
 
 
 
