@@ -5,6 +5,11 @@
 ::: photokit.PhotoLibrary
     handler.: python
 
+## PhotoLibrarySmartAlbumType
+
+::: photokit.PhotoLibrarySmartAlbumType
+    handler.: python
+
 ## PhotoAsset
 
 ::: photokit.PhotoAsset
