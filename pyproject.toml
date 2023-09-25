@@ -41,8 +41,10 @@ docs = [
     "mkdocstrings-python>=0.8.3",
 ]
 
-
 [project.urls]
 Home = "https://github.com/RhetTbull/photokit"
 Issues = "https://github.com/RhetTbull/photokit/issues"
 Source = "https://github.com/RhetTbull/photokit"
+
+[tool.flit.sdist]
+exclude = ["site/**/*"]
