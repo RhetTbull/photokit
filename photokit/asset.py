@@ -1102,7 +1102,7 @@ class _LivePhotoRequest(NSObject):
             options.setDeliveryMode_(
                 Photos.PHVideoRequestOptionsDeliveryModeHighQualityFormat
             )
-            delegate = PhotoKitNotificationsDelegate.alloc().init()
+            delegate = _PhotoKitNotificationDelegate.alloc().init()
 
             self.nc.addObserver_selector_name_object_(
                 delegate, "liveNotification:", None, None
