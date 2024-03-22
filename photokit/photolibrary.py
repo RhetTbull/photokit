@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import dataclasses
 import enum
 import logging
 import os
 import pathlib
 import threading
+from typing import Any, Callable
 
 import objc
 import Photos
@@ -44,7 +46,7 @@ _global_single_library_mode = True
 
 class PhotoLibrarySmartAlbumType(enum.Enum):
     """Smart album types.  The following are supported:
-    
+
     - Favorites
     - Hidden
     - Animated
@@ -86,6 +88,13 @@ class PhotoLibrarySmartAlbumType(enum.Enum):
     UnableToUload = Photos.PHAssetCollectionSubtypeSmartAlbumUnableToUpload
     UserLibrary = Photos.PHAssetCollectionSubtypeSmartAlbumUserLibrary
     Videos = Photos.PHAssetCollectionSubtypeSmartAlbumVideos
+
+
+@dataclasses.dataclass
+class AssetChanges:
+    added: list[Asset]
+    removed: list[Asset]
+    updated: list[Asset]
 
 
 class PhotoLibrary:
@@ -136,6 +145,10 @@ class PhotoLibrary:
             )
             self._phimagemanager = Photos.PHImageManager.alloc().init()
             self._photosdb = PhotosDB(library_path)
+
+        # set by observe_changes()
+        self._change_observer = None
+        self._observed_assets = None
 
     @staticmethod
     def enable_multi_library_mode():
@@ -921,6 +934,66 @@ class PhotoLibrary:
                 )
 
             return album_list
+
+    def observe_changes(self, callback: Callable[[AssetChanges], None]):
+        """Observe changes to the library and call callback when changes occur"""
+        if PhotoLibrary.multi_library_mode():
+            raise NotImplementedError(
+                "Observing changes not implemented in multi-library mode"
+            )
+        with objc.autorelease_pool():
+            self._callback = callback
+            options = Photos.PHFetchOptions.alloc().init()
+            self._observed_assets = Photos.PHAsset.fetchAssetsWithOptions_(options)
+            # ZZZ need a way to fetch assets from the screenshot collection
+            # fetchAssetsInAssetCollection:options:
+            # and pass in the fetch to observe_changes
+        self._phphotolibrary.registerChangeObserver_(self)
+
+    def stop_observing_changes(self):
+        """Stop observing changes to the library"""
+        if self._callback:
+            self._phphotolibrary.unregisterChangeObserver_(self)
+
+    def photoLibraryDidChange_(self, change_instance):
+        """Handle a change to the Photo library"""
+        if not self._callback:
+            raise PhotoKitError("No callback registered for change observer")
+        if not callable(self._callback):
+            raise PhotoKitError("Callback is not callable")
+
+        if not change_instance:
+            return
+
+        with objc.autorelease_pool():
+            change_details = change_instance.changeDetailsForFetchResult_(
+                self._observed_assets
+            )
+            if change_details:
+                if change_details.hasIncrementalChanges() and (
+                    change_details.insertedObjects().count() > 0
+                    or change_details.removedObjects().count() > 0
+                    or change_details.changedObjects().count() > 0
+                ):
+                    added = [
+                        self._asset_factory(
+                            change_details.insertedObjects().objectAtIndex_(i)
+                        )
+                        for i in range(change_details.insertedObjects().count())
+                    ]
+                    removed = [
+                        self._asset_factory(
+                            change_details.removedObjects().objectAtIndex_(i)
+                        )
+                        for i in range(change_details.removedObjects().count())
+                    ]
+                    updated = [
+                        self._asset_factory(
+                            change_details.changedObjects().objectAtIndex_(i)
+                        )
+                        for i in range(change_details.changedObjects().count())
+                    ]
+                    self._callback(AssetChanges(added, removed, updated))
 
     def _albums_from_uuid_list(self, uuids: list[str]) -> list[Album]:
         """Get albums from list of uuids

@@ -16,7 +16,7 @@ from .exceptions import (
     PhotoKitImportError,
     PhotoKitMediaTypeError,
 )
-from .photolibrary import PhotoLibrary, PhotoLibrarySmartAlbumType
+from .photolibrary import AssetChanges, PhotoLibrary, PhotoLibrarySmartAlbumType
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
@@ -26,6 +26,7 @@ __version__ = "0.1.4"
 
 __all__ = [
     "Album",
+    "AssetChanges",
     "LivePhotoAsset",
     "PhotoAsset",
     "PhotoKitAlbumAddAssetError",

@@ -17,3 +17,5 @@ venv/
 .python-version
 cov.xml
 site/
+pyrightconfig.json
+
