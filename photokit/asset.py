@@ -480,6 +480,20 @@ class PhotoAsset(Asset):
 
         self._perform_changes(change_request_handler, refresh=False)
 
+    # @property
+    # def description(self) -> str:
+    #     """Return description/caption of asset"""
+    #     return self.phasset.caption()
+
+    # @description.setter
+    # def description(self, value: str):
+    #     """Set the description/caption of the asset"""
+
+    #     def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+    #         change_request.setDescription_(value)
+
+    #     self._perform_changes(change_request_handler, refresh=False)
+
     # Not working yet
     # @property
     # def persons(self) -> list[str]:
@@ -557,6 +571,21 @@ class PhotoAsset(Asset):
         """
         imagedata = self._request_image_data(version=version)
         return imagedata.info["PHImageResultIsDegradedKey"]
+
+    @property
+    def debug_description(self) -> str:
+        """Return debug description for asset"""
+        return self.phasset.debugDescription()
+
+    @property
+    def debug_metadata_description(self) -> str:
+        """Return metadata debug description for asset"""
+        return self.phasset.metadataDebugDescription()
+
+    @property
+    def debug_resources_description(self) -> str:
+        """Return resourcesDebugDescription for asset"""
+        return self.phasset.resourcesDebugDescription()
 
     def _refresh(self):
         """Reload the asset from the library"""
