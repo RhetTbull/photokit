@@ -466,6 +466,20 @@ class PhotoAsset(Asset):
 
             self._perform_changes(change_request_handler)
 
+    @property
+    def title(self) -> str:
+        """Return title of asset"""
+        return self.phasset.title()
+
+    @title.setter
+    def title(self, value: str):
+        """Set the title of the asset"""
+
+        def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+            change_request.setTitle_(value)
+
+        self._perform_changes(change_request_handler, refresh=False)
+
     # Not working yet
     # @property
     # def persons(self) -> list[str]:

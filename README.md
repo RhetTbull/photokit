@@ -140,7 +140,7 @@ This project is licensed under the terms of the MIT license.
 - [x] location (setter/getter)
 - [x] duration
 - [ ] orientation
-- [ ] title (getter/setter)
+- [x] title (getter/setter)
 - [ ] description (getter/setter)
 - [ ] burst_photos
 - [ ] burst_uuid
