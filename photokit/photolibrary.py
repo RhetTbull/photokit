@@ -13,6 +13,7 @@ from typing import Any, Callable
 import objc
 import Photos
 from Foundation import NSURL, NSString
+from ScriptingBridge import SBApplication
 from wurlitzer import pipes
 
 from .album import Album
@@ -532,6 +533,12 @@ class PhotoLibrary:
             raise PhotoKitFetchFailed(
                 f"Fetch did not return result for uuid {uuid}: {e}"
             )
+
+    def selection(self) -> list[Asset]:
+        """Return list of assets currently selected in Photos app"""
+        if selected_uuids := get_selected_uuids():
+            return self.assets(selected_uuids)
+        return []
 
     def fetch_burst_uuid(self, burstid, all=False):
         """fetch PhotoAssets with burst ID = burstid
@@ -1144,3 +1151,19 @@ class PhotoLibrary:
     def __len__(self):
         """Return number of assets in library"""
         return len(self.assets())
+
+
+def get_selected_uuids() -> list[str]:
+    """Return UUIDs of selected assets or empty list if no selection"""
+
+    # I've not been able to figure out how to get the selection with PhotoKit
+    # so this code uses Scripting Bridge to execute the necessary AppleScript commands
+    photos_app = SBApplication.applicationWithBundleIdentifier_("com.apple.Photos")
+
+    if not photos_app.isRunning():
+        return []
+    selected_items = photos_app.selection()
+    selected_photos = list(selected_items)
+    if selected_photos:
+        return [photo.id() for photo in selected_photos]
+    return []

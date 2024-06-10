@@ -21,15 +21,16 @@ classifiers = [
 dynamic = ["version", "description"]
 requires-python = ">=3.9"
 dependencies = [
-    "pyobjc-core>=9.2,<10.0",
-    "pyobjc-framework-AVFoundation>=9.2,<10.0",
-    "pyobjc-framework-AppleScriptKit>=9.2,<10.0",
-    "pyobjc-framework-AppleScriptObjC>=9.2,<10.0",
-    "pyobjc-framework-Cocoa>=9.2,<10.0",
-    "pyobjc-framework-CoreServices>=9.2,<10.0",
-    "pyobjc-framework-Metal>=9.2,<10.0",
-    "pyobjc-framework-Photos>=9.2,<10.0",
-    "pyobjc-framework-Vision>=9.2,<10.0",
+    "pyobjc-core>=9.2,<11.0",
+    "pyobjc-framework-AVFoundation>=9.2,<11.0",
+    "pyobjc-framework-AppleScriptKit>=9.2,<11.0",
+    "pyobjc-framework-AppleScriptObjC>=9.2,<11.0",
+    "pyobjc-framework-Cocoa>=9.2,<11.0",
+    "pyobjc-framework-CoreServices>=9.2,<11.0",
+    "pyobjc-framework-Metal>=9.2,<11.0",
+    "pyobjc-framework-Photos>=9.2,<11.0",
+    "pyobjc-framework-Vision>=9.2,<11.0",
+    "pyobjc-framework-ScriptingBridge>=9.2,<11.0",
     "wurlitzer>=3.0.3,<4.0.0",
 ]
 

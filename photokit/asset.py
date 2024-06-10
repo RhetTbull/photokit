@@ -178,7 +178,7 @@ class PhotoAsset(Asset):
                 and resource.type() == Photos.PHAssetResourceTypeVideo
             ):
                 return resource.originalFilename()
-        return None
+        raise PhotoKitFetchFailed("Could not find original filename")
 
     @property
     def raw_filename(self):
