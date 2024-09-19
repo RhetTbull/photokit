@@ -1087,6 +1087,9 @@ class PhotoLibrary:
 
         Returns: list of PHKeyword objects
         """
+        if not titles:
+            return []
+
         if PhotoLibrary.multi_library_mode():
             uuids = self._photosdb.get_keyword_uuids_for_keywords(titles)
             fetch_object = NSString.stringWithString_("Keyword")
