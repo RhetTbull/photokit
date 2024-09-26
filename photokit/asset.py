@@ -582,7 +582,6 @@ class PhotoAsset(Asset):
         imagedata = self._request_image_data(version=version)
         return imagedata.orientation
 
-    @property
     def degraded(self, version=PHImageRequestOptionsVersionCurrent):
         """Return True if asset is degraded version
 
