@@ -14,7 +14,7 @@ import Foundation
 import objc
 import Photos
 import Quartz
-from Foundation import NSURL, NSArray, NSNotificationCenter, NSObject, NSString
+from Foundation import NSURL, NSArray, NSError, NSNotificationCenter, NSObject, NSString
 from PyObjCTools import AppHelper
 from wurlitzer import pipes
 
@@ -38,6 +38,7 @@ from .objc_utils import (
     datetime_to_NSDate,
     path_to_NSURL,
 )
+from .scriptingbridge import photo_set_description
 from .uti import get_preferred_uti_extension
 from .utils import increment_filename
 
@@ -419,6 +420,7 @@ class PhotoAsset(Asset):
     @property
     def hidden(self):
         """True if asset is hidden, otherwise False"""
+        self._refresh()
         return self.phasset.isHidden()
 
     @hidden.setter
@@ -433,6 +435,7 @@ class PhotoAsset(Asset):
     @property
     def keywords(self) -> list[str]:
         """Keywords associated with asset"""
+        self._refresh()
         keywords = Photos.PHKeyword.fetchKeywordsForAsset_options_(self.phasset, None)
         return [keywords.objectAtIndex_(idx).title() for idx in range(keywords.count())]
 
@@ -469,30 +472,47 @@ class PhotoAsset(Asset):
     @property
     def title(self) -> str:
         """Return title of asset"""
+        self._refresh()
         return self.phasset.title()
 
     @title.setter
-    def title(self, value: str):
+    def title(self, value: str | None):
         """Set the title of the asset"""
+
+        value = value or ""
 
         def change_request_handler(change_request: Photos.PHAssetChangeRequest):
             change_request.setTitle_(value)
 
         self._perform_changes(change_request_handler, refresh=False)
 
-    # @property
-    # def description(self) -> str:
-    #     """Return description/caption of asset"""
-    #     return self.phasset.caption()
+    @property
+    def accessibility_description(self) -> str:
+        """Get the accessibilty description of the asset"""
+        self._refresh()
+        return self.phasset.descriptionProperties().accessibilityDescription()
 
-    # @description.setter
-    # def description(self, value: str):
-    #     """Set the description/caption of the asset"""
+    @property
+    def description(self) -> str:
+        """Get the description of the asset"""
+        self._refresh()
+        return self.phasset.descriptionProperties().assetDescription()
 
-    #     def change_request_handler(change_request: Photos.PHAssetChangeRequest):
-    #         change_request.setDescription_(value)
-
-    #     self._perform_changes(change_request_handler, refresh=False)
+    @description.setter
+    def description(self, value: str | None) -> None:
+        """Set the description of the asset; requires use of ScriptingBridge so this only works on the default library"""
+        # Implementation Note:
+        # I would like to use PhotoKit to set the asset description and there is a PHChangeRequest.setAssetDescription method
+        # but this fails to set the description. I have spent about 20 hours attempting to reverse engineer this
+        # and have given up for now
+        # Attempting to set the asset description in a change block does not raise an error but fails
+        # to change the description
+        # Unlike all other attributes, the description has validateAssetDescription_error_ and setAssetDescriptionWasSet_
+        # methods implying that setting the description is more involved than other attributes but I have not
+        # been able to successfully make these work
+        # For now, this uses ScriptingBridge to set the description which means it is only valid on the
+        # default (last opened) library
+        photo_set_description(self.uuid, value)
 
     # Not working yet
     # @property
@@ -606,12 +626,6 @@ class PhotoAsset(Asset):
         """
 
         with objc.autorelease_pool():
-            event = threading.Event()
-
-            def completion_handler(success, error):
-                if error:
-                    raise PhotoKitChangeError(f"Error changing asset: {error}")
-                event.set()
 
             def _change_request_handler():
                 change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
@@ -619,14 +633,50 @@ class PhotoAsset(Asset):
                 )
                 change_request_handler(change_request)
 
-            self._library._phphotolibrary.performChanges_completionHandler_(
-                lambda: _change_request_handler(), completion_handler
+            error = self._library._phphotolibrary.performChangesAndWait_error_(
+                lambda: _change_request_handler(), None
             )
 
-            event.wait()
+            if error:
+                PhotoKitChangeError(f"Error changing asset: {error}")
 
             if refresh:
                 self._refresh()
+
+    # def _perform_changes(
+    #     self,
+    #     change_request_handler: Callable[[Photos.PHAssetChangeRequest], None],
+    #     refresh: bool = True,
+    # ):
+    #     """Perform changes on a PHAsset
+
+    #     Args:
+    #         change_request_handler: a callable that will be passed the PHAssetChangeRequest to perform changes
+    #         refresh: if True, refresh the asset from the library after performing changes (default is True)
+    #     """
+
+    #     with objc.autorelease_pool():
+    #         event = threading.Event()
+
+    #         def completion_handler(success, error):
+    #             if error:
+    #                 raise PhotoKitChangeError(f"Error changing asset: {error}")
+    #             event.set()
+
+    #         def _change_request_handler():
+    #             change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
+    #                 self.phasset
+    #             )
+    #             change_request_handler(change_request)
+
+    #         self._library._phphotolibrary.performChanges_completionHandler_(
+    #             lambda: _change_request_handler(), completion_handler
+    #         )
+
+    #         event.wait()
+
+    #         if refresh:
+    #             self._refresh()
 
     def export(
         self,

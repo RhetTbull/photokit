@@ -123,6 +123,7 @@ class PhotosDB:
         cursor.execute(query, tuple(keywords))
         results = cursor.fetchall()
         cursor.close()
+        logger.debug(f"results = {results}")
         return [r[0] for r in results]
 
     def get_date_added_for_uuid(self, uuid: str) -> datetime.datetime:
@@ -154,14 +155,14 @@ class PhotosDB:
 
     def get_timezone_for_uuid(self, uuid: str) -> tuple[int, str, str]:
         """Get the timezone, in seconds from GMT for a given UUID"""
-        query = """ 
-            SELECT 
-            ZADDITIONALASSETATTRIBUTES.ZTIMEZONEOFFSET, 
+        query = """
+            SELECT
+            ZADDITIONALASSETATTRIBUTES.ZTIMEZONEOFFSET,
             ZADDITIONALASSETATTRIBUTES.ZTIMEZONENAME
             FROM ZADDITIONALASSETATTRIBUTES
             JOIN ZASSET
             ON ZADDITIONALASSETATTRIBUTES.ZASSET = ZASSET.Z_PK
-            WHERE ZASSET.ZUUID = ?; 
+            WHERE ZASSET.ZUUID = ?;
         """
         logger.debug(f"query = {query}")
 
