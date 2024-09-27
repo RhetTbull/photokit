@@ -2,6 +2,7 @@
 
 import datetime
 import pathlib
+from typing import Generator
 
 import osxphotos
 import pytest
@@ -9,7 +10,7 @@ from osxphotos.datetime_utils import datetime_remove_tz
 
 import photokit
 
-SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
+SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_library_path()
 
 # test_video.MOV
 VIDEO_DURATION = 10.341667
@@ -21,7 +22,9 @@ def library():
 
 
 @pytest.fixture(scope="module")
-def asset(library: photokit.PhotoLibrary, asset_photo: str) -> photokit.PhotoAsset:
+def asset(
+    library: photokit.PhotoLibrary, asset_photo: str
+) -> Generator[photokit.PhotoAsset, None, None]:
     asset = library.add_photo(asset_photo)
     yield asset
     library.delete_assets([asset])
@@ -30,7 +33,7 @@ def asset(library: photokit.PhotoLibrary, asset_photo: str) -> photokit.PhotoAss
 @pytest.fixture(scope="module")
 def video_asset(
     library: photokit.PhotoLibrary, asset_video: str
-) -> photokit.PhotoAsset:
+) -> Generator[photokit.PhotoAsset, None, None]:
     asset = library.add_video(asset_video)
     yield asset
     library.delete_assets([asset])
@@ -39,7 +42,7 @@ def video_asset(
 @pytest.fixture(scope="module")
 def raw_asset(
     library: photokit.PhotoLibrary, asset_raw_photo: tuple[str, str]
-) -> photokit.PhotoAsset:
+) -> Generator[photokit.PhotoAsset, None, None]:
     asset = library.add_raw_pair_photo(*asset_raw_photo)
     yield asset
     library.delete_assets([asset])
@@ -48,7 +51,7 @@ def raw_asset(
 @pytest.fixture(scope="module")
 def live_asset(
     library: photokit.PhotoLibrary, asset_live_photo: tuple[str, str]
-) -> photokit.PhotoAsset:
+) -> Generator[photokit.PhotoAsset, None, None]:
     asset = library.add_live_photo(*asset_live_photo)
     yield asset
     library.delete_assets([asset])
@@ -56,12 +59,18 @@ def live_asset(
 
 @pytest.fixture(scope="module")
 def expected(asset) -> osxphotos.PhotoInfo:
-    return osxphotos.PhotosDB(SYSTEM_LIBRARY_PATH).get_photo(asset.uuid)
+    expected_asset = osxphotos.PhotosDB(SYSTEM_LIBRARY_PATH).get_photo(asset.uuid)
+    if not expected_asset:
+        raise ValueError(f"Asset not found: {asset}")
+    return expected_asset
 
 
 @pytest.fixture(scope="module")
 def expected_raw(raw_asset) -> osxphotos.PhotoInfo:
-    return osxphotos.PhotosDB(SYSTEM_LIBRARY_PATH).get_photo(raw_asset.uuid)
+    expected_asset = osxphotos.PhotosDB(SYSTEM_LIBRARY_PATH).get_photo(raw_asset.uuid)
+    if not expected_asset:
+        raise ValueError(f"Asset not found: {raw_asset}")
+    return expected_asset
 
 
 def test_asset_keywords(asset: photokit.PhotoAsset):

@@ -28,10 +28,10 @@ def test_photolibrary_multi_library_mode():
     assert not photokit.PhotoLibrary.multi_library_mode()
 
 
-def test_photolibrary_system_photo_library_path():
-    """Test PhotoLibrary.system_photo_library_path() method."""
+def test_photolibrary_system_library_path():
+    """Test PhotoLibrary.system_library_path() method."""
     library_path = get_system_library_path()
-    assert photokit.PhotoLibrary.system_photo_library_path() == library_path
+    assert photokit.PhotoLibrary.system_library_path() == library_path
 
 
 def test_photolibrary_authorization_status():
@@ -42,7 +42,7 @@ def test_photolibrary_authorization_status():
 def test_photolibrary_library_path():
     """Test PhotoLibrary().library_path() method."""
     library = photokit.PhotoLibrary()
-    assert library.library_path() == get_system_library_path()
+    assert library.library_path == get_system_library_path()
 
 
 def test_photolibrary_assets(photo_count: tuple[int, int]):

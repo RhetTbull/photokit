@@ -7,9 +7,12 @@ import enum
 import logging
 import os
 import pathlib
+import plistlib
 import threading
+import urllib.parse
 from typing import Any, Callable
 
+import CoreFoundation
 import objc
 import Photos
 from Foundation import NSURL, NSString
@@ -134,7 +137,7 @@ class PhotoLibrary:
             _global_single_library_mode = True
             self._phimagemanager = Photos.PHCachingImageManager.defaultManager()
             self._phphotolibrary = Photos.PHPhotoLibrary.sharedPhotoLibrary()
-            self._photosdb = PhotosDB(PhotoLibrary.system_photo_library_path())
+            self._photosdb = PhotosDB(PhotoLibrary.system_library_path())
         else:
             # undocumented private API to get PHPhotoLibrary for a specific library
             Photos.PHPhotoLibrary.enableMultiLibraryMode()
@@ -170,9 +173,18 @@ class PhotoLibrary:
         return not _global_single_library_mode
 
     @staticmethod
-    def system_photo_library_path() -> str:
+    def system_library_path() -> str:
         """Return path to system photo library"""
         return NSURL_to_path(Photos.PHPhotoLibrary.systemPhotoLibraryURL())
+
+    @staticmethod
+    def default_library_path() -> str | None:
+        """Return path to the default (last opened) library or None if this cannot be determined"""
+        try:
+            return get_default_library_path()
+        except Exception as e:
+            logger.warning(f"Could not determine default library path: {e}")
+            return None
 
     @staticmethod
     def authorization_status() -> tuple[bool, bool]:
@@ -301,9 +313,18 @@ class PhotoLibrary:
                     f"Unable to create library at {library_path}"
                 )
 
+    @property
     def library_path(self) -> str:
         """Return path to Photos library"""
         return NSURL_to_path(self._phphotolibrary.photoLibraryURL())
+
+    def is_system_library(self) -> bool:
+        """Return True if library is the system library, otherwise False"""
+        return self.library_path == PhotoLibrary.system_library_path()
+
+    def is_default_library(self) -> bool:
+        """Return True if library is the default (last opened) library, otherwise False"""
+        return self.library_path == PhotoLibrary.default_library_path()
 
     def assets(self, uuids: list[str] | None = None) -> list[Asset]:
         """Return list of all assets in the library or subset filtered by UUID.
@@ -1170,3 +1191,62 @@ def get_selected_uuids() -> list[str]:
     if selected_photos:
         return [photo.id() for photo in selected_photos]
     return []
+
+
+def get_default_library_path() -> str | None:
+    """Returns the path to the default (last opened) Photos library.
+
+    Returns: path to the default Photos library or None
+
+    Raises:
+        ValueError if plist file containing the library information cannot be parsed
+
+    Note:
+        Calling this may require that the calling app (or terminal if called via command line)
+        have full disk access in order to access the ~/Library/Containers folder
+    """
+    plist_file = (
+        pathlib.Path.home()
+        / "Library/Containers/com.apple.Photos/Data/Library/Preferences/com.apple.Photos.plist"
+    )
+    if plist_file.is_file():
+        with open(plist_file, "rb") as fp:
+            pl = plistlib.load(fp)
+    else:
+        logger.debug(f"could not find plist file: {str(plist_file)}")
+        return None
+
+    # get the IPXDefaultLibraryURLBookmark from com.apple.Photos.plist
+    # this is a serialized CFData object
+    photosurlref = pl.get("IPXDefaultLibraryURLBookmark")
+
+    if not photosurlref:
+        logger.debug("Could not get path to Photos database")
+        return None
+
+    if photosurlref is not None:
+        # use CFURLCreateByResolvingBookmarkData to de-serialize bookmark data into a CFURLRef
+        with objc.autorelease_pool():
+            # isStale and error returned as tuple (in pyobjc, None is passed instead of pointer)
+            photosurl, is_stale, error = (
+                CoreFoundation.CFURLCreateByResolvingBookmarkData(
+                    CoreFoundation.kCFAllocatorDefault,
+                    photosurlref,
+                    0,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            )
+            if error:
+                raise ValueError(error)
+            if not photosurl:
+                raise ValueError(
+                    "Could not extract photos URL from IPXDefaultLibraryURLBookmark"
+                )
+            success, buffer = CoreFoundation.CFURLGetFileSystemRepresentation(
+                photosurl, True, None, 2048
+            )
+            path = NSString.stringWithUTF8String_(buffer)
+            return str(path)

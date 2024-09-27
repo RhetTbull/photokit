@@ -8,7 +8,7 @@ from osxphotos.datetime_utils import datetime_naive_to_local
 
 import photokit
 
-SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
+SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_library_path()
 
 # seconds to wait for Photos before testing changes
 WAIT_FOR_PHOTOS = 1

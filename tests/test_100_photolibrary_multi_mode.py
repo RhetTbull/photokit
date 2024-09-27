@@ -13,7 +13,7 @@ import photokit
 from photokit.asset import LivePhotoAsset, PhotoAsset, VideoAsset
 from photokit.exceptions import PhotoKitError, PhotoKitFetchFailed
 
-SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_photo_library_path()
+SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_library_path()
 
 
 def test_photolibrary_multi_library_mode_enable_multi_library_mode():
@@ -33,7 +33,7 @@ def test_photolibrary_multi_library_mode_raises():
 def test_photolibrary_multi_library_mode_library_path():
     """Test PhotoLibrary().library_path() method."""
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
-    assert library.library_path() == SYSTEM_LIBRARY_PATH
+    assert library.library_path == SYSTEM_LIBRARY_PATH
 
 
 def test_photolibrary_multi_library_mode_assets(photo_count: tuple[int, int]):
@@ -78,14 +78,14 @@ def test_photolibrary_multi_library_mode_create_library(tmp_path: pathlib.Path):
     """Test PhotoLibrary.create_library() method."""
     tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
     library = photokit.PhotoLibrary.create_library(tmp_library)
-    assert library.library_path() == str(tmp_library)
+    assert library.library_path == str(tmp_library)
 
 
 def test_photolibrary_multi_library_mode_create_library_raises(tmp_path: pathlib.Path):
     """Test PhotoLibrary.create_library() method raises error if library exists."""
     tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
     library = photokit.PhotoLibrary.create_library(tmp_library)
-    assert library.library_path() == str(tmp_library)
+    assert library.library_path == str(tmp_library)
     with pytest.raises(FileExistsError):
         library = photokit.PhotoLibrary.create_library(tmp_library)
 

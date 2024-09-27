@@ -81,10 +81,11 @@ This project is licensed under the terms of the MIT license.
 
 - [x] enable_multi_library_mode()
 - [x] multi_library_mode()
-- [x] system_photo_library_path()
+- [x] system_library_path()
 - [x] authorization_status()
 - [ ] request_authorization() (*partially implemented*)
 - [x] create_library()
+- [x] default_library_path()
 
 #### Methods
 
@@ -106,6 +107,8 @@ This project is licensed under the terms of the MIT license.
 - [ ] create_folder()
 - [x] fetch_or_create_album() (renamed to album())
 - [x] count(), __len__
+- [ ] is_default() # is default library
+- [ ] is_system() # is system library
 
 ### PhotoAsset
 
@@ -139,9 +142,9 @@ This project is licensed under the terms of the MIT license.
 - [x] timezone (setter/getter)
 - [x] location (setter/getter)
 - [x] duration
-- [ ] orientation
+- [x] orientation
 - [x] title (getter/setter)
-- [ ] description (getter/setter)
+- [x] description (getter/setter)
 - [ ] burst_photos
 - [ ] burst_uuid
 - [ ] export (implemented, not yet tested)

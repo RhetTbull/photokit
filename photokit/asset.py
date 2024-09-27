@@ -7,6 +7,7 @@ import datetime
 import pathlib
 import threading
 import time
+from ast import IsNot
 from typing import TYPE_CHECKING, Callable
 
 import AVFoundation
@@ -182,7 +183,7 @@ class PhotoAsset(Asset):
         raise PhotoKitFetchFailed("Could not find original filename")
 
     @property
-    def raw_filename(self):
+    def raw_filename(self) -> str | None:
         """Return RAW filename for RAW+JPEG photos or None if no RAW asset"""
         resources = self._resources()
         for resource in resources:
@@ -194,7 +195,7 @@ class PhotoAsset(Asset):
         return None
 
     @property
-    def hasadjustments(self):
+    def hasadjustments(self) -> bool:
         """Check to see if a PHAsset has adjustment data associated with it
         Returns False if no adjustments, True if any adjustments"""
 
@@ -212,62 +213,62 @@ class PhotoAsset(Asset):
         )
 
     @property
-    def media_type(self):
+    def media_type(self) -> str:
         """media type such as image or video"""
         return self.phasset.mediaType()
 
     @property
-    def media_subtypes(self):
+    def media_subtypes(self) -> str:
         """media subtype"""
         return self.phasset.mediaSubtypes()
 
     @property
-    def panorama(self):
+    def panorama(self) -> bool:
         """return True if asset is panorama, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypePhotoPanorama)
 
     @property
-    def hdr(self):
+    def hdr(self) -> bool:
         """return True if asset is HDR, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypePhotoHDR)
 
     @property
-    def screenshot(self):
+    def screenshot(self) -> bool:
         """return True if asset is screenshot, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypePhotoScreenshot)
 
     @property
-    def live(self):
+    def live(self) -> bool:
         """return True if asset is live, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypePhotoLive)
 
     @property
-    def streamed(self):
+    def streamed(self) -> bool:
         """return True if asset is streamed video, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypeVideoStreamed)
 
     @property
-    def slow_mo(self):
+    def slow_mo(self) -> bool:
         """return True if asset is slow motion (high frame rate) video, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypeVideoHighFrameRate)
 
     @property
-    def time_lapse(self):
+    def time_lapse(self) -> bool:
         """return True if asset is time lapse video, otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypeVideoTimelapse)
 
     @property
-    def portrait(self):
+    def portrait(self) -> bool:
         """return True if asset is portrait (depth effect), otherwise False"""
         return bool(self.media_subtypes & Photos.PHAssetMediaSubtypePhotoDepthEffect)
 
     @property
-    def burstid(self):
+    def burstid(self) -> str | None:
         """return burstIdentifier of image if image is burst photo otherwise None"""
         return self.phasset.burstIdentifier()
 
     @property
-    def burst(self):
+    def burst(self) -> bool:
         """return True if image is burst otherwise False"""
         return bool(self.burstid)
 
@@ -277,18 +278,18 @@ class PhotoAsset(Asset):
         return self.phasset.sourceType()
 
     @property
-    def pixel_width(self):
+    def pixel_width(self) -> int:
         """width in pixels"""
         return self.phasset.pixelWidth()
 
     @property
-    def pixel_height(self):
+    def pixel_height(self) -> int:
         """height in pixels"""
         return self.phasset.pixelHeight()
 
     @property
     def date(self) -> datetime.datetime:
-        """date asset was created as a naive datetime.datetime"""
+        """Date asset was created as a naive datetime.datetime"""
         return NSDate_to_datetime(self.phasset.creationDate())
 
     @date.setter
@@ -303,7 +304,7 @@ class PhotoAsset(Asset):
 
     @property
     def date_modified(self) -> datetime.datetime:
-        """date asset was modified as a naive datetime.datetime"""
+        """Date asset was modified as a naive datetime.datetime"""
         return NSDate_to_datetime(self.phasset.modificationDate())
 
     @date_modified.setter
@@ -494,13 +495,13 @@ class PhotoAsset(Asset):
 
     @property
     def description(self) -> str:
-        """Get the description of the asset"""
+        """Get/set the description of the asset; setter requires use of ScriptingBridge so this only works on the default library"""
         self._refresh()
         return self.phasset.descriptionProperties().assetDescription()
 
     @description.setter
     def description(self, value: str | None) -> None:
-        """Set the description of the asset; requires use of ScriptingBridge so this only works on the default library"""
+        """Get/set the description of the asset; setter requires use of ScriptingBridge so this only works on the default library"""
         # Implementation Note:
         # I would like to use PhotoKit to set the asset description and there is a PHChangeRequest.setAssetDescription method
         # but this fails to set the description. I have spent about 20 hours attempting to reverse engineer this
@@ -512,6 +513,10 @@ class PhotoAsset(Asset):
         # been able to successfully make these work
         # For now, this uses ScriptingBridge to set the description which means it is only valid on the
         # default (last opened) library
+        if not self._library.is_default_library():
+            raise RuntimeError(
+                "description setter can only be used on the default library"
+            )
         photo_set_description(self.uuid, value)
 
     # Not working yet
