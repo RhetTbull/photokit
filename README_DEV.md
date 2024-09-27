@@ -22,4 +22,6 @@ Run tests with `pytest`.  The test suite will modify your system Photo's library
 
 Update version using `bump-my-version bump minor --verbose`. (minor, major, patch, etc., use --dry-run if desired to see what will be changed)
 
+Add and commit changes to git.
+
 Then `flit build` followed by `flit publish`.
