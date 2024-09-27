@@ -20,4 +20,6 @@ Run tests with `pytest`.  The test suite will modify your system Photo's library
 
 ## Publishing to PyPI
 
-Update version in `photokit/__init__.py` then run `flit build` followed by `flit publish`.
+Update version using `bump-my-version`.
+
+Then `flit build` followed by `flit publish`.
