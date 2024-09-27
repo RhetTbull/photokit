@@ -58,11 +58,15 @@ Python PhotoKit is being developed on macOS Ventura (13.5.x). Initial testing ha
 
 ## Implementation Notes
 
-PhotoKit is a macOS framework for working with the Photos app.  It is written in Objective-C and is not directly accessible from Python.  This project uses [pyobjc](https://github.com/ronaldoussoren/pyobjc) to provide a Python interface to the PhotoKit framework. It abstracts away the Objective-C implementation details and provides a Pythonic interface to the PhotoKit framework with Python classes to provide access to the user's Photo's library and assets in the library.
+PhotoKit is a macOS framework for working with the Photos app. It is written in Objective-C and is not directly accessible from Python.  This project uses [pyobjc](https://github.com/ronaldoussoren/pyobjc) to provide a Python interface to the PhotoKit framework. It abstracts away the Objective-C implementation details and provides a Pythonic interface to the PhotoKit framework with Python classes to provide access to the user's Photo's library and assets in the library.
 
 In addition the public PhotoKit API, this project uses private, undocumented APIs to allow access to arbitrary Photos libraries, creating new Photos libraries, accessing keywords, etc. The public PhotoKit API only allows access to the user's default Photos library (the so called "System Library") and limits the metadata available.
 
 A number of methods allow retrieval of assets of via a local identifier or [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier). Photos uses a local identifier to identify assets, albums, etc. within a single Photos library. The local identifier is specific to a given instance of the Photos library. The same asset in a different instance of the Photos library will have a different local identifier. This library uses the term "UUID" interchangeably with local identifier. A UUID is a string of hexadecimal digits that takes the form: `61A4B877-5EAC-4710-AA77-6D387629D9A5`. A local identifier returned by the native PhotoKit interface includes additional digits in the form `61A4B877-5EAC-4710-AA77-6D387629D9A5/L0/001`. For any method in this library that accepts a UUID, you may pass either the full local identifier or just the UUID portion. The library will automatically strip off the additional digits.
+
+Whenever a pulic, documented method is available, the library uses that method. However, when no public method is available, this library uses private, undocumented methods to provide the functionality. If a private method cannot be found or does not work, the library uses direct access to the Photos database. If this doesn't work, the library will use AppleScript via the ScriptingBridge framework to access the Photos app. This is the least desirable method as it is slow and can be unreliable and only works on the current (default) Photos library.
+
+It would be wonderful if Apple provided a full public API to Photos but this is unlikely to happen. The use of private APIs is not recommended by Apple and could break at any time. This library is provided as-is with no guarantees of functionality. Use at your own risk.
 
 ## See Also
 
