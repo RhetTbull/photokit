@@ -20,6 +20,6 @@ Run tests with `pytest`.  The test suite will modify your system Photo's library
 
 ## Publishing to PyPI
 
-Update version using `bump-my-version`.
+Update version using `bump-my-version bump minor --verbose`. (minor, major, patch, etc., use --dry-run if desired to see what will be changed)
 
 Then `flit build` followed by `flit publish`.
