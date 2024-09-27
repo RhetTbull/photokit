@@ -854,7 +854,7 @@ class PhotoLibrary:
         album_type: PhotoLibrarySmartAlbumType | None = None,
         user: bool = False,
     ) -> Album:
-        """Get smart album with given name
+        """Get smart album with given name or type
 
         Args:
             album_name: name of smart album to fetch
@@ -869,6 +869,7 @@ class PhotoLibrary:
 
         Note: This only works in single library mode. If more than one album has the same name,
         the first one found will be returned but no guarantee is made as to which one.
+        Only one of album_name or album_type must be passed.
         """
 
         if PhotoLibrary.multi_library_mode():
