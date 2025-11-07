@@ -7,9 +7,9 @@ import os
 import pathlib
 import sqlite3
 
-logger = logging.getLogger("photokit")
-
 import datetime
+
+logger = logging.getLogger("photokit")
 
 # Time delta: add this to Photos times to get unix time
 # Apple Epoch is Jan 1, 2001

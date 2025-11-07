@@ -272,7 +272,7 @@ class PhotoLibrary:
         return bool(auth_status)
 
     @staticmethod
-    def create_library(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+    def _create_library_old(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
         """Create a new Photos library at library_path
 
         Args:
@@ -286,7 +286,7 @@ class PhotoLibrary:
 
         Note:
             This only works in multi-library mode; multi-library mode will be enabled if not already enabled.
-            This may file (after a long timeout) if a library with same name was recently created
+            This may fail (after a long timeout) if a library with same name was recently created
             (even if it has since been deleted).
         """
         library_path = (
@@ -304,7 +304,7 @@ class PhotoLibrary:
         # Error appears to occur if a library with same name was recently created (even if it has since been deleted)
         with pipes() as (out, err):
             photo_library = Photos.PHPhotoLibrary.alloc().initWithPhotoLibraryURL_type_(
-                NSURL.fileURLWithPath_(library_path), 0
+                NSURL.fileURLWithPath_(library_path), 1
             )
             if photo_library.createPhotoLibraryUsingOptions_error_(None, None):
                 return PhotoLibrary(library_path)
@@ -312,6 +312,48 @@ class PhotoLibrary:
                 raise PhotoKitCreateLibraryError(
                     f"Unable to create library at {library_path}"
                 )
+
+    @staticmethod
+    def _create_library_does_not_work(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+        """Create a new Photos library at library_path
+
+        Args:
+            library_path: str or pathlib.Path, path to new library
+
+        Returns: PhotoLibrary object for new library
+
+        Raises:
+            FileExistsError if library already exists at library_path
+            PhotoKitCreateLibraryError if unable to create library
+
+        Note:
+            This only works in multi-library mode; multi-library mode will be enabled if not already enabled.
+            This may fail (after a long timeout) if a library with same name was recently created
+            (even if it has since been deleted).
+        """
+        library_path = (
+            str(library_path) if not isinstance(library_path, str) else library_path
+        )
+        if pathlib.Path(library_path).is_dir():
+            raise FileExistsError(f"Library already exists at {library_path}")
+
+        # This only works in multi-library mode
+        PhotoLibrary.enable_multi_library_mode()
+
+        # Create library creation options for a user library
+        # The PHPhotoLibraryCreationOptions class provides factory methods for different library types
+        creation_options = Photos.PHPhotoLibraryCreationOptions.creationOptionsForUserLibrary()
+        creation_options.setLibraryURL_(NSURL.fileURLWithPath_(library_path))
+
+        phm = Photos.PHPhotoLibraryManager.alloc().init()
+        print(f"{phm=}")
+        success, error = phm.createPhotoLibraryWithURL_options_error_(NSURL.fileURLWithPath_(library_path), creation_options, None)
+        print(f"{success=}, {error=}")
+        if not success:
+            raise PhotoKitCreateLibraryError(
+                f"Unable to create library at {library_path}: {error if error else 'Unknown error'}"
+            )
+        return PhotoLibrary(library_path)
 
     @property
     def library_path(self) -> str:
