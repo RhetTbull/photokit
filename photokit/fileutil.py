@@ -1,4 +1,4 @@
-""" FileUtil class with methods for copy, hardlink, unlink, etc. """
+"""FileUtil class with methods for copy, hardlink, unlink, etc."""
 
 import os
 import pathlib

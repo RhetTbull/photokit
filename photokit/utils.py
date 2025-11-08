@@ -1,4 +1,4 @@
-""" Utility functions used in photokit """
+"""Utility functions used in photokit"""
 
 from __future__ import annotations
 
