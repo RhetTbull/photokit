@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import dataclasses
 import enum
 import logging
@@ -9,10 +10,10 @@ import os
 import pathlib
 import plistlib
 import threading
-import urllib.parse
-from typing import Any, Callable
+from typing import Callable
 
 import CoreFoundation
+import Foundation
 import objc
 import Photos
 from Foundation import NSURL, NSString
@@ -352,11 +353,9 @@ class PhotoLibrary:
         creation_options.setLibraryURL_(NSURL.fileURLWithPath_(library_path))
 
         phm = Photos.PHPhotoLibraryManager.alloc().init()
-        print(f"{phm=}")
         success, error = phm.createPhotoLibraryWithURL_options_error_(
             NSURL.fileURLWithPath_(library_path), creation_options, None
         )
-        print(f"{success=}, {error=}")
         if not success:
             raise PhotoKitCreateLibraryError(
                 f"Unable to create library at {library_path}: {error if error else 'Unknown error'}"
@@ -398,7 +397,6 @@ class PhotoLibrary:
             # options.setIncludeHiddenAssets_(True)
             # TODO: to access hidden photos, Photos > Settings > General > Privacy > Use Touch ID or Password
             # must be turned off
-            # print(options.includeHiddenAssets())
             assets = Photos.PHAsset.fetchAssetsWithOptions_(options)
             asset_list = [assets.objectAtIndex_(idx) for idx in range(assets.count())]
             return [self._asset_factory(asset) for asset in asset_list]
@@ -512,9 +510,7 @@ class PhotoLibrary:
                     title
                 )
 
-                album_uuid = (
-                    creation_request.placeholderForCreatedAssetCollection().localIdentifier()
-                )
+                album_uuid = creation_request.placeholderForCreatedAssetCollection().localIdentifier()
 
             self._phphotolibrary.performChanges_completionHandler_(
                 lambda: create_album_handler(title), completion_handler
@@ -845,7 +841,7 @@ class PhotoLibrary:
 
             return self.asset(asset_uuid)
 
-    def _parse_aae_file(
+    def _adjustment_data_from_aae(
         self, aae_path: str | pathlib.Path | os.PathLike | None
     ) -> Photos.PHAdjustmentData | None:
         """Parse an AAE file and create PHAdjustmentData.
@@ -865,7 +861,6 @@ class PhotoLibrary:
         - adjustmentTimestamp: date of the adjustment
         - adjustmentBaseVersion: integer base version
         """
-        import Foundation
 
         if not aae_path:
             return None
@@ -878,28 +873,34 @@ class PhotoLibrary:
             with open(aae_path, "rb") as f:
                 aae_dict = plistlib.load(f)
 
+            plist_data = Foundation.NSDictionary.dictionaryWithContentsOfFile_(str(aae_path))
             # Extract the required fields
             format_identifier = aae_dict.get(
                 "adjustmentFormatIdentifier", "com.apple.photo"
             )
             format_version = aae_dict.get("adjustmentFormatVersion", "1.0")
-            adjustment_data_bytes = aae_dict.get("adjustmentData", b"")
-
-            # Create NSData from the binary data
-            ns_data = Foundation.NSData.dataWithBytes_length_(
-                adjustment_data_bytes, len(adjustment_data_bytes)
-            )
-
+            adjustment_data_str = aae_dict.get("adjustmentData", b"")
+            adjustment_editor_bundle_id = aae_dict.get("adjustmentEditorBundleID", "")
+            ns_data = plist_data.valueForKey_("adjustmentData")
+            render_type = plist_data.valueForKey_("adjustmentRenderTypes")
+            ns_data = Foundation.NSData.dataWithBytes_length_(b"Hello",len(b"Hello"))
             # Create PHAdjustmentData
             adjustment_data = Photos.PHAdjustmentData.alloc().initWithFormatIdentifier_formatVersion_data_(
                 format_identifier, format_version, ns_data
             )
+
+            # adjustment_data.setEditorBundleID_(adjustment_editor_bundle_id)
+            adjustment_data.setEditorBundleID_("com.rhettbull.photokit")
+            adjustment_data.setAdjustmentRenderTypes_(render_type)
+            base_version = plist_data.valueForKey_("adjustmentBaseVersion")
+            adjustment_data.setBaseVersion_(base_version)
 
             return adjustment_data
 
         except Exception as e:
             # If we can't parse the AAE file, return None
             # The caller will create a minimal PHAdjustmentData
+            logger.error(f"Failed to parse AAE file: {e}")
             return None
 
     def _create_minimal_adjustment_data(self) -> Photos.PHAdjustmentData:
@@ -908,8 +909,6 @@ class PhotoLibrary:
         Returns:
             PHAdjustmentData with minimal data
         """
-        import Foundation
-
         format_identifier = "com.photokit.edit"
         format_version = "1.0"
         adjustment_data_content = b"edited"
@@ -949,13 +948,6 @@ class PhotoLibrary:
             PhotoKitImportError if unable to import image
             PhotoKitChangeError if unable to apply edit (see note below)
 
-        Note:
-            Due to a PhotoKit API limitation, freshly imported photos cannot always be
-            edited immediately. This may result in PHPhotosErrorDomain Code 3302
-            (PHPhotosErrorInvalidResource). The photo will still be added to the library,
-            but the adjustment data may not be applied. This works reliably on photos that
-            are already in the library or were added through the Photos app interface.
-
         Example:
             # Add photo with AAE file
             photo = pl.add_photo_with_adjustments(
@@ -978,24 +970,22 @@ class PhotoLibrary:
         if not edited_path.is_file():
             raise FileNotFoundError(f"Could not find edited file {edited_path}")
 
-        # Add the original photo first
         asset = self.add_photo(original_path)
 
-        # Parse AAE file or create minimal adjustment data
-        adjustment_data = self._parse_aae_file(aae_path)
+        adjustment_data = self._adjustment_data_from_aae(aae_path)
         if not adjustment_data:
             adjustment_data = self._create_minimal_adjustment_data()
+        edited_abs_path = (
+            edited_path.absolute() if not edited_path.is_absolute() else edited_path
+        )
 
         # Apply the edit with adjustment data
         def apply_edit_callback(original_file_path, existing_adjustment_data):
             # Convert to absolute path if needed
-            edited_abs_path = (
-                edited_path.absolute() if not edited_path.is_absolute() else edited_path
-            )
+
             return (str(edited_abs_path), adjustment_data)
 
         asset.edit(apply_edit_callback)
-
         return asset
 
     def add_video_with_adjustments(
@@ -1049,7 +1039,7 @@ class PhotoLibrary:
         asset = self.add_video(original_path)
 
         # Parse AAE file or create minimal adjustment data
-        adjustment_data = self._parse_aae_file(aae_path)
+        adjustment_data = self._adjustment_data_from_aae(aae_path)
         if not adjustment_data:
             adjustment_data = self._create_minimal_adjustment_data()
 
@@ -1137,8 +1127,8 @@ class PhotoLibrary:
         # Add the original live photo first
         asset = self.add_live_photo(original_photo_path, original_video_path)
 
-        # Parse AAE file or create minimal adjustment data
-        adjustment_data = self._parse_aae_file(aae_path)
+        # ggParse AAE file or create minimal adjustment data
+        adjustment_data = self._adjustment_data_from_aae(aae_path)
         if not adjustment_data:
             adjustment_data = self._create_minimal_adjustment_data()
 
@@ -1218,7 +1208,7 @@ class PhotoLibrary:
         asset = self.add_raw_pair_photo(original_raw_path, original_jpeg_path)
 
         # Parse AAE file or create minimal adjustment data
-        adjustment_data = self._parse_aae_file(aae_path)
+        adjustment_data = self._adjustment_data_from_aae(aae_path)
         if not adjustment_data:
             adjustment_data = self._create_minimal_adjustment_data()
 
@@ -1479,8 +1469,11 @@ class PhotoLibrary:
         with objc.autorelease_pool():
             if PhotoLibrary.multi_library_mode():
                 fetch_object = NSString.stringWithString_("Album")
-                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                    uuids, fetch_object
+                if (
+                    fetch_result
+                    := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                        uuids, fetch_object
+                    )
                 ):
                     return [
                         Album(self, fetch_result.objectAtIndex_(idx))
@@ -1514,8 +1507,11 @@ class PhotoLibrary:
         with objc.autorelease_pool():
             if PhotoLibrary.multi_library_mode():
                 fetch_object = NSString.stringWithString_("Asset")
-                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                    uuids, fetch_object
+                if (
+                    fetch_result
+                    := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                        uuids, fetch_object
+                    )
                 ):
                     return [
                         self._asset_factory(fetch_result.objectAtIndex_(idx))

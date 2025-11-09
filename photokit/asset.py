@@ -656,12 +656,17 @@ class PhotoAsset(Asset):
             )
             change_request_handler(change_request)
 
-        error = self._library._phphotolibrary.performChangesAndWait_error_(
+        # some versions of pyobjc do not return a tuple
+        success_error = self._library._phphotolibrary.performChangesAndWait_error_(
             lambda: _change_request_handler(), None
         )
 
-        if error:
-            raise PhotoKitChangeError(f"Error changing asset: {error}")
+        if (
+            (isinstance(success_error, tuple) and success_error[1] is not None)
+            or not isinstance(success_error, tuple)
+            and success_error
+        ):
+            raise PhotoKitChangeError(f"Error changing asset: {success_error[1]}")
 
         if refresh:
             self._refresh()
