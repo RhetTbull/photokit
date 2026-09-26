@@ -15,6 +15,7 @@ from .exceptions import (
     PhotoKitFetchFailed,
     PhotoKitImportError,
     PhotoKitMediaTypeError,
+    PhotoKitTimeoutError,
 )
 from .photolibrary import AssetChanges, PhotoLibrary, PhotoLibrarySmartAlbumType
 
@@ -39,6 +40,7 @@ __all__ = [
     "PhotoKitFetchFailed",
     "PhotoKitImportError",
     "PhotoKitMediaTypeError",
+    "PhotoKitTimeoutError",
     "PhotoLibrary",
     "PhotoLibrarySmartAlbumType",
     "VideoAsset",

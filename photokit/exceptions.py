@@ -31,6 +31,18 @@ class PhotoKitImportError(PhotoKitError):
     pass
 
 
+class PhotoKitTimeoutError(PhotoKitError):
+    """Exception raised when an asynchronous PhotoKit request exceeds PHOTOKIT_REQUEST_TIMEOUT.
+
+    PhotoKit image/resource/video requests are asynchronous and set
+    networkAccessAllowed=True, so they may try to download originals from iCloud.
+    If iCloud stalls, the completion/result handler never fires and the request
+    would otherwise block the calling thread forever. This bounds that wait.
+    """
+
+    pass
+
+
 class PhotoKitMediaTypeError(PhotoKitError):
     """Exception raised if an unknown mediaType() is encountered"""
 
