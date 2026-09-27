@@ -13,22 +13,25 @@ It is based on work done for [osxphotos](https://github.com/RhetTbull/osxphotos)
 >>> PhotoLibrary.authorization_status()
 (True, True)
 >>> pl = PhotoLibrary()
->>> pl.add_photo("/Users/user/Desktop/IMG_0632.JPG")
-'8D35D987-9ECC-490C-811A-1AA33C8A7983/L0/001'
->>> photo = pl.fetch_uuid("CA2E3ADB-53A4-4E85-8D7D-4A664F970810")
+>>> new_photo = pl.add_photo("/Users/user/Desktop/IMG_0632.JPG")
+>>> new_photo.uuid
+'8D35D987-9ECC-490C-811A-1AA33C8A7983'
+>>> photo = pl.asset("CA2E3ADB-53A4-4E85-8D7D-4A664F970810")
 >>> photo.original_filename
 'IMG_4703.HEIC'
 >>> photo.export("/private/tmp")
 ['/private/tmp/IMG_4703.heic']
+>>> photo.revert()  # discard any edits
 >>>
 ```
 
+Libraries other than the system library can be opened by path; this switches PhotoKit to multi-library mode (see [Implementation Notes](#implementation-notes)):
+
 ```pycon
 >>> from photokit import PhotoLibrary
->>> new_library = PhotoLibrary.create_library("test.photoslibrary")
->>> new_library.add_photo("/private/tmp/IMG_4703.HEIC")
-'07922E5C-5F4D-46C4-8DF9-D609FCF6714D/L0/001'
 >>> library2 = PhotoLibrary("/Users/user/Pictures/Test2.photoslibrary")
+>>> library2.add_photo("/private/tmp/IMG_4703.HEIC")
+<photokit.asset.PhotoAsset object at 0x...>
 ```
 
 ## Installation
@@ -48,23 +51,27 @@ or via pip:
     pip3 install photokit
 ```
 
+Note: the version on PyPI (0.2.1) does not yet include the editing features (`PhotoAsset.edit()`, `PhotoAsset.revert()`, and `PhotoLibrary.add_*_with_adjustments()`); install from GitHub to use them.
+
 ## Documentation
 
 Documentation is available at [https://rhettbull.github.io/photokit/](https://rhettbull.github.io/photokit/).
 
 ## Supported Platforms
 
-Python PhotoKit is being developed on macOS Ventura (13.5.x). Initial testing has been done on macOS Monterey (12.x) and macOS Sonoma (14.0 Developer Preview) and it appears to work though no guarantees are made. It will not work on macOS Catalina (10.15.x) or earlier as those versions of macOS do not support some of the API calls used by this library.
+Python PhotoKit was originally developed on macOS Ventura (13.5.x) with initial testing on macOS Monterey (12.x) and macOS Sonoma (14.x). The test suite currently passes on macOS 27. No guarantees are made for other versions. It will not work on macOS Catalina (10.15.x) or earlier as those versions of macOS do not support some of the API calls used by this library.
 
 ## Implementation Notes
 
 PhotoKit is a macOS framework for working with the Photos app. It is written in Objective-C and is not directly accessible from Python.  This project uses [pyobjc](https://github.com/ronaldoussoren/pyobjc) to provide a Python interface to the PhotoKit framework. It abstracts away the Objective-C implementation details and provides a Pythonic interface to the PhotoKit framework with Python classes to provide access to the user's Photo's library and assets in the library.
 
-In addition the public PhotoKit API, this project uses private, undocumented APIs to allow access to arbitrary Photos libraries, creating new Photos libraries, accessing keywords, etc. The public PhotoKit API only allows access to the user's default Photos library (the so called "System Library") and limits the metadata available.
+In addition the public PhotoKit API, this project uses private, undocumented APIs to allow access to arbitrary Photos libraries, accessing keywords, etc. The public PhotoKit API only allows access to the user's default Photos library (the so called "System Library") and limits the metadata available.
+
+Opening a library other than the system library (`PhotoLibrary(library_path)` or `PhotoLibrary.enable_multi_library_mode()`) switches PhotoKit into multi-library mode for the rest of the process; after that, `PhotoLibrary()` (single-library mode) can no longer be used. Some methods (`smart_album()`, `smart_albums()`, `observe_changes()`) are only available in single-library mode.
 
 A number of methods allow retrieval of assets of via a local identifier or [universally unique identifier](https://en.wikipedia.org/wiki/Universally_unique_identifier). Photos uses a local identifier to identify assets, albums, etc. within a single Photos library. The local identifier is specific to a given instance of the Photos library. The same asset in a different instance of the Photos library will have a different local identifier. This library uses the term "UUID" interchangeably with local identifier. A UUID is a string of hexadecimal digits that takes the form: `61A4B877-5EAC-4710-AA77-6D387629D9A5`. A local identifier returned by the native PhotoKit interface includes additional digits in the form `61A4B877-5EAC-4710-AA77-6D387629D9A5/L0/001`. For any method in this library that accepts a UUID, you may pass either the full local identifier or just the UUID portion. The library will automatically strip off the additional digits.
 
-Whenever a pulic, documented method is available, the library uses that method. However, when no public method is available, this library uses private, undocumented methods to provide the functionality. If a private method cannot be found or does not work, the library uses direct access to the Photos database. If this doesn't work, the library will use AppleScript via the ScriptingBridge framework to access the Photos app. This is the least desirable method as it is slow and can be unreliable and only works on the current (default) Photos library.
+Whenever a public, documented method is available, the library uses that method. However, when no public method is available, this library uses private, undocumented methods to provide the functionality. If a private method cannot be found or does not work, the library uses direct access to the Photos database. If this doesn't work, the library will use AppleScript via the ScriptingBridge framework to access the Photos app. This is the least desirable method as it is slow and can be unreliable and only works on the current (default) Photos library.
 
 ### Editing Assets and AAE Files
 
@@ -90,33 +97,40 @@ This project is licensed under the terms of the MIT license.
 - [x] enable_multi_library_mode()
 - [x] multi_library_mode()
 - [x] system_library_path()
-- [x] authorization_status()
-- [ ] request_authorization() (*partially implemented*)
-- [x] create_library()
 - [x] default_library_path()
+- [x] authorization_status()
+- [ ] request_authorization() (*partially implemented, not well tested*)
+- [ ] create_library() (*removed: the private API it used no longer works*)
 
 #### Methods
 
-- [x] assets()
+- [x] library_path
+- [x] is_system_library()
+- [x] is_default_library()
+- [x] assets() (all assets or `assets(uuids=[...])`)
 - [x] asset()
 - [x] albums()
-- [ ] smart_albums() (or method for each smart album, e.g. "recents()", "hidden()", etc.)?
+- [x] album() (by UUID or title)
+- [x] create_album()
+- [x] delete_album()
+- [x] smart_album(), smart_albums() (*single-library mode only*)
 - [ ] moments()
-- [ ] folders()
-- [x] fetch_uuid_list() (*rename to fetch_assets or use assets(uuid_list)*)
-- [x] fetch_uuid() (*rename to fetch_asset() or asset()*)
-- [ ] fetch_burst_uuid()
+- [ ] folders() (*stub: prints folders but does not return them*)
+- [ ] create_folder()
+- [x] fetch_burst_uuid() (*implemented, not yet tested*)
+- [x] selection() (assets currently selected in Photos)
 - [x] delete_assets()
 - [x] add_photo()
 - [x] add_video()
-- [x] add_raw_pair()
+- [x] add_raw_pair_photo()
 - [x] add_live_photo()
-- [x] create_album()
-- [ ] create_folder()
-- [x] fetch_or_create_album() (renamed to album())
-- [x] count(), __len__
-- [ ] is_default() # is default library
-- [ ] is_system() # is system library
+- [x] add_photo_with_adjustments()
+- [x] add_video_with_adjustments()
+- [x] add_live_photo_with_adjustments()
+- [x] add_raw_pair_photo_with_adjustments()
+- [x] create_keyword()
+- [x] observe_changes(), stop_observing_changes() (*single-library mode only*)
+- [x] \_\_len\_\_
 
 ### PhotoAsset
 
@@ -126,11 +140,13 @@ This project is licensed under the terms of the MIT license.
 - [x] isaudio
 - [x] original_filename
 - [x] uuid
+- [x] local_identifier
 - [x] raw_filename
 - [x] hasadjustments
 - [x] media_type
 - [x] media_subtypes
 - [x] favorite (getter/setter)
+- [x] hidden (getter/setter)
 - [x] panorama
 - [x] hdr
 - [x] screenshot
@@ -140,6 +156,7 @@ This project is licensed under the terms of the MIT license.
 - [x] time_lapse
 - [x] portrait
 - [x] burst
+- [x] burstid
 - [x] source_type
 - [x] pixel_width
 - [x] pixel_height
@@ -150,18 +167,21 @@ This project is licensed under the terms of the MIT license.
 - [x] timezone (setter/getter)
 - [x] location (setter/getter)
 - [x] duration
-- [x] orientation
+- [x] orientation() (current or original version)
 - [x] title (getter/setter)
 - [x] description (getter/setter)
 - [x] edit
 - [x] revert
 - [ ] burst_photos
-- [ ] burst_uuid
 - [ ] export (implemented, not yet tested)
 
 ### VideoAsset
 
+- [ ] export, including slow-mo videos (implemented, not yet tested)
+
 ### LivePhotoAsset
+
+- [ ] export (implemented, not yet tested)
 
 ### Album
 
