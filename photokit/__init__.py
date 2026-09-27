@@ -23,7 +23,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(filename)s - %(lineno)d - %(message)s",
 )
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 __all__ = [
     "Album",
