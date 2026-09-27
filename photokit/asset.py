@@ -154,6 +154,32 @@ def _write_rendered_content(
         FileUtil.copy(edited_path, rendered_path)
 
 
+def _write_rendered_video_complement(
+    output: Photos.PHContentEditingOutput, edited_video_path: str | pathlib.Path
+):
+    """Write the edited paired video of a Live Photo to the rendered video complement location
+
+    Uses the private, undocumented PHContentEditingOutput.renderedVideoComplementContentURL
+
+    Args:
+        output: PHContentEditingOutput to write rendered content for
+        edited_video_path: path to the edited paired video
+
+    Raises:
+        PhotoKitChangeError if the rendered video complement URL cannot be obtained
+    """
+    if not output.respondsToSelector_("renderedVideoComplementContentURL"):
+        raise PhotoKitChangeError(
+            "Editing the video of a Live Photo is not supported on this version of macOS"
+        )
+    rendered_url = output.renderedVideoComplementContentURL()
+    if rendered_url is None:
+        raise PhotoKitChangeError(
+            "Could not get rendered content URL for Live Photo video"
+        )
+    FileUtil.copy(edited_video_path, NSURL_to_path(rendered_url))
+
+
 ### helper classes
 class ImageData:
     """Simple class to hold the data passed to the handler for
@@ -869,15 +895,18 @@ class PhotoAsset(Asset):
     def edit(
         self,
         callback: Callable[
-            [str, Photos.PHAdjustmentData], tuple[str, Photos.PHAdjustmentData] | None
+            [str, Photos.PHAdjustmentData],
+            tuple[str, Photos.PHAdjustmentData]
+            | tuple[str, Photos.PHAdjustmentData, str]
+            | None,
         ],
         can_handle_adjustment_data: bool = False,
     ):
         """Edit the asset (photo or video) using a user-provided callback function.
 
         This method works for both photos and videos. For photos, use Core Image filters
-        (see ed.py for an example). For videos, use AVFoundation with Core Image filters
-        applied to each frame (see edit_video_grayscale.py for an example).
+        (see examples/edit_photo_grayscale.py). For videos, use AVFoundation with Core Image
+        filters applied to each frame (see examples/edit_video_grayscale.py).
 
         Args:
             callback: A callable that takes (original_path: str, adjustment_data: PHAdjustmentData)
@@ -887,8 +916,16 @@ class PhotoAsset(Asset):
                      edited version to edited_path, returning the new adjustment data.
                      For videos, original_path points to the video file (.mov, .mp4, etc).
                      For photos, original_path points to the image file (.heic, .jpg, etc).
+                     For Live Photos, original_path points to the still image; the callback may
+                     optionally return a third value, the path to the edited paired video
+                     (edited_path, new_adjustment_data, edited_video_path). If no edited video is
+                     returned, only the still image is edited.
+                     An edited photo is converted to JPEG if Photos does not accept its format
+                     as rendered content.
             can_handle_adjustment_data: bool, if True, indicates that the callback can handle
                      adjustment data. Default is False, as most adjustment data is proprietary to Apple.
+                     If True, adjustment_data passed to the callback is the asset's current
+                     adjustment data (or None if the asset has not been edited).
 
         Raises:
             PhotoKitChangeError: If the edit operation fails.
@@ -972,10 +1009,20 @@ class PhotoAsset(Asset):
                 # Edit cancelled
                 return
 
-            edited_path, new_adjustment_data = result
+            edited_path, new_adjustment_data, *rest = result
+            edited_video_path = rest[0] if rest else None
 
             if not pathlib.Path(edited_path).exists():
                 raise ValueError("Callback must return a valid path to the edited file")
+            if edited_video_path is not None:
+                if not self.live:
+                    raise ValueError(
+                        "Callback may only return an edited video for Live Photos"
+                    )
+                if not pathlib.Path(edited_video_path).exists():
+                    raise ValueError(
+                        "Callback must return a valid path to the edited video"
+                    )
 
             # Write the rendered content before performing the change;
             # PhotoKit expects the file to exist when the change block runs
@@ -983,12 +1030,29 @@ class PhotoAsset(Asset):
                 editing_input
             )
             _write_rendered_content(output, edited_path, is_photo=not self.ismovie)
+            if edited_video_path is not None:
+                _write_rendered_video_complement(output, edited_video_path)
             output.setAdjustmentData_(new_adjustment_data)
 
             def change_request_handler(change_request: Photos.PHAssetChangeRequest):
                 change_request.setContentEditingOutput_(output)
 
             self._perform_changes(change_request_handler)
+
+    def revert(self):
+        """Revert the asset to its original version, discarding all edits.
+
+        Does nothing if the asset has not been edited.
+
+        Raises:
+            PhotoKitChangeError: If the revert operation fails.
+        """
+        if not self.hasadjustments:
+            return
+
+        self._perform_changes(
+            lambda change_request: change_request.revertAssetContentToOriginal()
+        )
 
     def _request_image_data(self, version=PHImageRequestOptionsVersionOriginal):
         """Request image data and metadata for self._phasset
@@ -1212,7 +1276,7 @@ class VideoAsset(PhotoAsset):
 
     Inherits the edit() method from PhotoAsset for editing videos.
     Use AVFoundation and Core Image filters to process video frames.
-    See edit_video_grayscale.py for an example of applying filters to videos.
+    See examples/edit_video_grayscale.py for an example of applying filters to videos.
     """
 
     # TODO: doesn't work for slow-mo videos

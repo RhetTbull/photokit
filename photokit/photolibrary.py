@@ -988,7 +988,7 @@ class PhotoLibrary:
         original_photo_path: str | pathlib.Path | os.PathLike,
         original_video_path: str | pathlib.Path | os.PathLike,
         edited_photo_path: str | pathlib.Path | os.PathLike,
-        edited_video_path: str | pathlib.Path | os.PathLike,
+        edited_video_path: str | pathlib.Path | os.PathLike | None = None,
         aae_path: str | pathlib.Path | os.PathLike | None = None,
     ) -> LivePhotoAsset:
         """Add a live photo with adjustments to the Photos library.
@@ -1000,7 +1000,8 @@ class PhotoLibrary:
             original_photo_path: path to original (unedited) photo file
             original_video_path: path to original (unedited) paired video file
             edited_photo_path: path to edited/rendered photo file
-            edited_video_path: path to edited/rendered video file
+            edited_video_path: optional path to edited/rendered paired video file
+                     If not provided, only the still image is edited
             aae_path: optional path to AAE file containing adjustment data
                      If not provided, a minimal adjustment data will be created
 
@@ -1033,7 +1034,7 @@ class PhotoLibrary:
         original_photo_path = pathlib.Path(original_photo_path)
         original_video_path = pathlib.Path(original_video_path)
         edited_photo_path = pathlib.Path(edited_photo_path)
-        edited_video_path = pathlib.Path(edited_video_path)
+        edited_video_path = pathlib.Path(edited_video_path) if edited_video_path else None
 
         if not original_photo_path.is_file():
             raise FileNotFoundError(
@@ -1047,7 +1048,7 @@ class PhotoLibrary:
             raise FileNotFoundError(
                 f"Could not find edited photo file {edited_photo_path}"
             )
-        if not edited_video_path.is_file():
+        if edited_video_path and not edited_video_path.is_file():
             raise FileNotFoundError(
                 f"Could not find edited video file {edited_video_path}"
             )
@@ -1055,20 +1056,20 @@ class PhotoLibrary:
         # Add the original live photo first
         asset = self.add_live_photo(original_photo_path, original_video_path)
 
-        # ggParse AAE file or create minimal adjustment data
+        # Parse AAE file or create minimal adjustment data
         adjustment_data = adjustment_data_from_aae(aae_path)
         if not adjustment_data:
             adjustment_data = create_minimal_adjustment_data()
 
-        # For live photos, we need to handle both photo and video
-        # The edit callback receives the photo path
-        # We'll copy both the edited photo and video to the rendered location
+        # Apply the edit with the edited still image and, if provided, the edited paired video
         def apply_edit_callback(original_file_path, existing_adjustment_data):
-            # For live photos, we return the edited photo path
-            # The video will be handled by the PHContentEditingOutput
-            # Note: This is a simplified approach - proper live photo editing
-            # would require more complex handling with PHLivePhotoEditingContext
-            return (str(edited_photo_path), adjustment_data)
+            if edited_video_path:
+                return (
+                    str(edited_photo_path.absolute()),
+                    adjustment_data,
+                    str(edited_video_path.absolute()),
+                )
+            return (str(edited_photo_path.absolute()), adjustment_data)
 
         asset.edit(apply_edit_callback)
 
