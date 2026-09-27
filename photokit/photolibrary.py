@@ -1001,7 +1001,8 @@ class PhotoLibrary:
             original_video_path: path to original (unedited) paired video file
             edited_photo_path: path to edited/rendered photo file
             edited_video_path: optional path to edited/rendered paired video file
-                     If not provided, only the still image is edited
+                     If not provided, the original paired video is used so the edited
+                     asset remains a Live Photo
             aae_path: optional path to AAE file containing adjustment data
                      If not provided, a minimal adjustment data will be created
 
@@ -1034,7 +1035,9 @@ class PhotoLibrary:
         original_photo_path = pathlib.Path(original_photo_path)
         original_video_path = pathlib.Path(original_video_path)
         edited_photo_path = pathlib.Path(edited_photo_path)
-        edited_video_path = pathlib.Path(edited_video_path) if edited_video_path else None
+        edited_video_path = (
+            pathlib.Path(edited_video_path) if edited_video_path else original_video_path
+        )
 
         if not original_photo_path.is_file():
             raise FileNotFoundError(
@@ -1048,7 +1051,7 @@ class PhotoLibrary:
             raise FileNotFoundError(
                 f"Could not find edited photo file {edited_photo_path}"
             )
-        if edited_video_path and not edited_video_path.is_file():
+        if not edited_video_path.is_file():
             raise FileNotFoundError(
                 f"Could not find edited video file {edited_video_path}"
             )
@@ -1061,15 +1064,14 @@ class PhotoLibrary:
         if not adjustment_data:
             adjustment_data = create_minimal_adjustment_data()
 
-        # Apply the edit with the edited still image and, if provided, the edited paired video
+        # Apply the edit with both the edited still image and paired video;
+        # if only a still image is provided, Photos saves the edit as a still photo
         def apply_edit_callback(original_file_path, existing_adjustment_data):
-            if edited_video_path:
-                return (
-                    str(edited_photo_path.absolute()),
-                    adjustment_data,
-                    str(edited_video_path.absolute()),
-                )
-            return (str(edited_photo_path.absolute()), adjustment_data)
+            return (
+                str(edited_photo_path.absolute()),
+                adjustment_data,
+                str(edited_video_path.absolute()),
+            )
 
         asset.edit(apply_edit_callback)
 

@@ -200,13 +200,32 @@ def test_add_live_photo_with_adjustments(
 def test_add_live_photo_with_adjustments_photo_only(
     library: photokit.PhotoLibrary, created: list
 ):
-    """Test PhotoLibrary.add_live_photo_with_adjustments() with only edited photo"""
+    """Test PhotoLibrary.add_live_photo_with_adjustments() with only edited photo uses original video"""
     live = library.add_live_photo_with_adjustments(
         LIVE_PHOTO, LIVE_VIDEO, LIVE_PHOTO_EDITED, aae_path=LIVE_AAE
     )
     created.append(live)
     assert live.live
     assert live.hasadjustments
+    assert Photos.PHAssetResourceTypeFullSizePairedVideo in resource_types(live)
+
+
+def test_edit_live_photo_still_only(library: photokit.PhotoLibrary, created: list):
+    """Test PhotoAsset.edit() on a Live Photo without an edited video saves a still photo
+    and PhotoAsset.revert() restores the Live Photo"""
+    live = library.add_live_photo(LIVE_PHOTO, LIVE_VIDEO)
+    created.append(live)
+    assert live.live
+
+    live.edit(
+        lambda path, adjustment_data: (str(LIVE_PHOTO_EDITED), make_adjustment_data())
+    )
+    assert live.hasadjustments
+    assert not live.live
+
+    live.revert()
+    assert not live.hasadjustments
+    assert live.live
 
 
 def test_add_raw_pair_photo_with_adjustments(

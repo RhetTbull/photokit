@@ -919,7 +919,9 @@ class PhotoAsset(Asset):
                      For Live Photos, original_path points to the still image; the callback may
                      optionally return a third value, the path to the edited paired video
                      (edited_path, new_adjustment_data, edited_video_path). If no edited video is
-                     returned, only the still image is edited.
+                     returned, Photos saves the edited version as a still photo and the asset is
+                     no longer a Live Photo; to keep it Live without changing the motion, return
+                     the original paired video.
                      An edited photo is converted to JPEG if Photos does not accept its format
                      as rendered content.
             can_handle_adjustment_data: bool, if True, indicates that the callback can handle
