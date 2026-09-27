@@ -433,11 +433,18 @@ class PhotoLibrary:
             album_list = []
             for i in range(albums.count()):
                 album = albums.objectAtIndex_(i)
-                # filter out PHCollectionList (folders), PHCloudSharedAlbum (shared albums)
-                if not isinstance(
-                    album, (Photos.PHCollectionList, Photos.PHCloudSharedAlbum)
+                # only include regular user albums: filter out PHCollectionList (folders),
+                # shared albums, and projects; check the subtype rather than the class as
+                # the classes differ between macOS versions (e.g. PHCloudSharedAlbum was
+                # removed in macOS 27)
+                if isinstance(album, Photos.PHCollectionList):
+                    continue
+                if (
+                    album.assetCollectionSubtype()
+                    != Photos.PHAssetCollectionSubtypeAlbumRegular
                 ):
-                    album_list.append(album)
+                    continue
+                album_list.append(album)
             return [Album(self, album) for album in album_list]
 
     def album(self, uuid: str | None = None, title: str | None = None) -> Album:

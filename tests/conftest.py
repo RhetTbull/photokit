@@ -6,15 +6,14 @@ import os
 
 import osxphotos
 import pytest
-from osxphotos.utils import get_system_library_path
-
-from photokit import PhotoLibrarySmartAlbumType
+from photokit import PhotoLibrary, PhotoLibrarySmartAlbumType
 
 
 @pytest.fixture(scope="session")
 def photosdb() -> osxphotos.PhotosDB:
     """osxphotos PhotosDB instance"""
-    photosdb = osxphotos.PhotosDB(get_system_library_path())
+    # osxphotos.utils.get_system_library_path() returns None on macOS 27+
+    photosdb = osxphotos.PhotosDB(PhotoLibrary.system_library_path())
     yield photosdb
 
 

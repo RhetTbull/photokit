@@ -48,7 +48,8 @@ class PhotosDB:
 
         Returns: list of asset UUIDs
 
-        Note: Does not return UUIDs for non-selected burst images or shared images.
+        Note: Does not return UUIDs for non-selected burst images, shared images,
+        or images received in Messages that are not shown in the library.
         """
 
         query = """
@@ -56,6 +57,7 @@ class PhotosDB:
             FROM ZASSET
             WHERE TRUE
             AND ZCLOUDBATCHPUBLISHDATE IS NULL -- not shared images
+            AND (ZSAVEDASSETTYPE IS NULL OR ZSAVEDASSETTYPE != 12) -- received in Messages, not shown in library
             """
 
         if not burst:

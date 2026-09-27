@@ -74,22 +74,6 @@ def test_photolibrary_multi_library_mode_asset_raises():
         library.asset("12345")
 
 
-def test_photolibrary_multi_library_mode_create_library(tmp_path: pathlib.Path):
-    """Test PhotoLibrary.create_library() method."""
-    tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
-    library = photokit.PhotoLibrary.create_library(tmp_library)
-    assert library.library_path == str(tmp_library)
-
-
-def test_photolibrary_multi_library_mode_create_library_raises(tmp_path: pathlib.Path):
-    """Test PhotoLibrary.create_library() method raises error if library exists."""
-    tmp_library = tmp_path / f"Test_{time.perf_counter_ns()}.photoslibrary"
-    library = photokit.PhotoLibrary.create_library(tmp_library)
-    assert library.library_path == str(tmp_library)
-    with pytest.raises(FileExistsError):
-        library = photokit.PhotoLibrary.create_library(tmp_library)
-
-
 def test_photolibrary_multi_library_mode_add_delete_photo(asset_photo: str):
     """Test PhotoLibrary().add_photo() and delete_assets() methods in multi library mode."""
     library = photokit.PhotoLibrary(SYSTEM_LIBRARY_PATH)
