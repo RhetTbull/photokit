@@ -51,8 +51,6 @@ or via pip:
     pip3 install photokit
 ```
 
-Note: the version on PyPI (0.2.1) does not yet include the editing features (`PhotoAsset.edit()`, `PhotoAsset.revert()`, and `PhotoLibrary.add_*_with_adjustments()`); install from GitHub to use them.
-
 ## Documentation
 
 Documentation is available at [https://rhettbull.github.io/photokit/](https://rhettbull.github.io/photokit/).
