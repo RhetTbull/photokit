@@ -1,5 +1,8 @@
 """Test Album class."""
 
+from __future__ import annotations
+
+import datetime
 import time
 
 import osxphotos
@@ -12,6 +15,15 @@ SYSTEM_LIBRARY_PATH = photokit.PhotoLibrary.system_library_path()
 
 # seconds to wait for Photos before testing changes
 WAIT_FOR_PHOTOS = 1
+
+
+# osxphotos returns the Apple epoch (2001-01-01 UTC) instead of None for albums with no dates
+APPLE_EPOCH = datetime.datetime(2001, 1, 1, tzinfo=datetime.timezone.utc)
+
+
+def expected_album_date(date: datetime.datetime | None) -> datetime.datetime | None:
+    """Return the osxphotos album date, or None if it is the Apple epoch (no date)"""
+    return None if date == APPLE_EPOCH else date
 
 
 def test_album_multi_library_mode(photosdb: osxphotos.PhotosDB):
@@ -30,12 +42,12 @@ def test_album_multi_library_mode(photosdb: osxphotos.PhotosDB):
                 datetime_naive_to_local(album.start_date) == expected_album.start_date
             )
         else:
-            assert expected_album.start_date is None
+            assert expected_album_date(expected_album.start_date) is None
 
         if album.end_date:
             assert datetime_naive_to_local(album.end_date) == expected_album.end_date
         else:
-            assert expected_album.end_date is None
+            assert expected_album_date(expected_album.end_date) is None
 
         expected_photos = [p for p in expected_album.photos if not p.hidden]
         assert len(album) == len(album.assets())
