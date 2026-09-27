@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import logging
 import pathlib
 import threading
 import time
@@ -33,6 +34,7 @@ from .exceptions import (
     PhotoKitMediaTypeError,
 )
 from .fileutil import FileUtil
+from .imageconverter import ImageConversionError, ImageConverter
 from .objc_utils import (
     NSDate_to_datetime,
     NSURL_to_path,
@@ -40,11 +42,13 @@ from .objc_utils import (
     path_to_NSURL,
 )
 from .scriptingbridge import photo_set_description
-from .uti import get_preferred_uti_extension
+from .uti import get_preferred_uti_extension, get_uti_for_extension
 from .utils import increment_filename
 
 if TYPE_CHECKING:
     from .photolibrary import PhotoLibrary
+
+logger = logging.getLogger("photokit")
 
 # NOTES:
 # - There are several techniques used for handling PhotoKit's various
@@ -90,6 +94,64 @@ objc.registerMetaDataForSelector(
         }
     },
 )
+
+
+def _normalized_suffix(path: str | pathlib.Path) -> str:
+    """Return lower case file suffix without leading '.', with .jpg normalized to jpeg"""
+    suffix = pathlib.Path(path).suffix.lower().lstrip(".")
+    return "jpeg" if suffix == "jpg" else suffix
+
+
+def _write_rendered_content(
+    output: Photos.PHContentEditingOutput,
+    edited_path: str | pathlib.Path,
+    is_photo: bool,
+):
+    """Write the edited file to the rendered content location for a PHContentEditingOutput
+
+    On macOS 14+, if the edited file's type is one of the output's supported rendered
+    content types, it is copied as-is to the URL for that type. Otherwise it is copied to
+    the default renderedContentURL, converting photos to JPEG if the types don't match.
+
+    Args:
+        output: PHContentEditingOutput to write rendered content for
+        edited_path: path to the edited file
+        is_photo: True if the asset is a photo, False if a video
+
+    Raises:
+        PhotoKitChangeError if rendered content URL cannot be obtained or file cannot be converted
+    """
+    edited_path = pathlib.Path(edited_path)
+    if output.respondsToSelector_("supportedRenderedContentTypes"):
+        edited_uti = get_uti_for_extension(edited_path.suffix)
+        for content_type in output.supportedRenderedContentTypes() or []:
+            if content_type.identifier() == edited_uti:
+                rendered_url, error = output.renderedContentURLForType_error_(
+                    content_type, None
+                )
+                if rendered_url is None:
+                    raise PhotoKitChangeError(
+                        f"Could not get rendered content URL for {edited_uti}: {error}"
+                    )
+                FileUtil.copy(edited_path, NSURL_to_path(rendered_url))
+                return
+
+    rendered_path = NSURL_to_path(output.renderedContentURL())
+    if _normalized_suffix(edited_path) == _normalized_suffix(rendered_path):
+        FileUtil.copy(edited_path, rendered_path)
+    elif is_photo and _normalized_suffix(rendered_path) == "jpeg":
+        try:
+            ImageConverter().write_jpeg(edited_path, rendered_path)
+        except ImageConversionError as e:
+            raise PhotoKitChangeError(
+                f"Could not convert {edited_path} to JPEG for rendered content: {e}"
+            ) from e
+    else:
+        logger.warning(
+            f"Edited file type {edited_path.suffix} does not match rendered content type "
+            f"{pathlib.Path(rendered_path).suffix}; copying without conversion"
+        )
+        FileUtil.copy(edited_path, rendered_path)
 
 
 ### helper classes
@@ -657,16 +719,18 @@ class PhotoAsset(Asset):
             change_request_handler(change_request)
 
         # some versions of pyobjc do not return a tuple
-        success_error = self._library._phphotolibrary.performChangesAndWait_error_(
+        result = self._library._phphotolibrary.performChangesAndWait_error_(
             lambda: _change_request_handler(), None
         )
+        if isinstance(result, tuple):
+            success, error = result
+        elif isinstance(result, NSError):
+            success, error = False, result
+        else:
+            success, error = bool(result), None
 
-        if (
-            (isinstance(success_error, tuple) and success_error[1] is not None)
-            or not isinstance(success_error, tuple)
-            and success_error
-        ):
-            raise PhotoKitChangeError(f"Error changing asset: {success_error[1]}")
+        if not success:
+            raise PhotoKitChangeError(f"Error changing asset: {error}")
 
         if refresh:
             self._refresh()
@@ -845,7 +909,7 @@ class PhotoAsset(Asset):
             options = Photos.PHContentEditingInputRequestOptions.alloc().init()
             options.setNetworkAccessAllowed_(True)
             if can_handle_adjustment_data:
-                options.setCanHandleAdjustmentData_(lambda: True)
+                options.setCanHandleAdjustmentData_(lambda adjustment_data: True)
 
             editing_input = [None, None]
             completed = [False]
@@ -913,27 +977,15 @@ class PhotoAsset(Asset):
             if not pathlib.Path(edited_path).exists():
                 raise ValueError("Callback must return a valid path to the edited file")
 
-            # Store values for use in the change handler
-            edited_path_str = str(edited_path)
+            # Write the rendered content before performing the change;
+            # PhotoKit expects the file to exist when the change block runs
+            output = Photos.PHContentEditingOutput.alloc().initWithContentEditingInput_(
+                editing_input
+            )
+            _write_rendered_content(output, edited_path, is_photo=not self.ismovie)
+            output.setAdjustmentData_(new_adjustment_data)
 
-            # Perform the change
             def change_request_handler(change_request: Photos.PHAssetChangeRequest):
-                output = (
-                    Photos.PHContentEditingOutput.alloc().initWithContentEditingInput_(
-                        editing_input
-                    )
-                )
-
-                # PHContentEditingOutput automatically creates a renderedContentURL
-                # Copy our edited file to that location
-                rendered_url = output.renderedContentURL()
-                rendered_path = NSURL_to_path(rendered_url)
-
-                import shutil
-
-                shutil.copy2(edited_path_str, rendered_path)
-
-                output.setAdjustmentData_(new_adjustment_data)
                 change_request.setContentEditingOutput_(output)
 
             self._perform_changes(change_request_handler)

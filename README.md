@@ -66,6 +66,10 @@ A number of methods allow retrieval of assets of via a local identifier or [univ
 
 Whenever a pulic, documented method is available, the library uses that method. However, when no public method is available, this library uses private, undocumented methods to provide the functionality. If a private method cannot be found or does not work, the library uses direct access to the Photos database. If this doesn't work, the library will use AppleScript via the ScriptingBridge framework to access the Photos app. This is the least desirable method as it is slow and can be unreliable and only works on the current (default) Photos library.
 
+### Editing Assets and AAE Files
+
+Assets can be edited with `PhotoAsset.edit()`, including assets just added to the library. The `PhotoLibrary.add_*_with_adjustments()` methods add an original asset then apply an edited version along with adjustment data read from an AAE file (for example, one exported from Photos). Photos will not accept an edit from another process that uses its own adjustment format identifier, `com.apple.photo`; attempting to do so fails with `PHPhotosErrorDomain` error 3302. Adjustment data read from an AAE file with this identifier is therefore stored under a photokit-specific identifier. The adjustment data is preserved and the edited version displays normally (and "Revert to Original" works) but Photos treats the edit as coming from another app so it cannot re-open Apple's adjustments in its own editor.
+
 It would be wonderful if Apple provided a full public API to Photos but this is unlikely to happen. The use of private APIs is not recommended by Apple and could break at any time. This library is provided as-is with no guarantees of functionality. Use at your own risk.
 
 ## See Also

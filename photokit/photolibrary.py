@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import dataclasses
 import enum
 import logging
@@ -20,6 +19,7 @@ from Foundation import NSURL, NSString
 from ScriptingBridge import SBApplication
 from wurlitzer import pipes
 
+from .aae import adjustment_data_from_aae, create_minimal_adjustment_data
 from .album import Album
 from .asset import Asset, LivePhotoAsset, PhotoAsset, VideoAsset
 from .constants import PHAccessLevelAddOnly, PHAccessLevelReadWrite
@@ -510,7 +510,9 @@ class PhotoLibrary:
                     title
                 )
 
-                album_uuid = creation_request.placeholderForCreatedAssetCollection().localIdentifier()
+                album_uuid = (
+                    creation_request.placeholderForCreatedAssetCollection().localIdentifier()
+                )
 
             self._phphotolibrary.performChanges_completionHandler_(
                 lambda: create_album_handler(title), completion_handler
@@ -841,88 +843,6 @@ class PhotoLibrary:
 
             return self.asset(asset_uuid)
 
-    def _adjustment_data_from_aae(
-        self, aae_path: str | pathlib.Path | os.PathLike | None
-    ) -> Photos.PHAdjustmentData | None:
-        """Parse an AAE file and create PHAdjustmentData.
-
-        Args:
-            aae_path: path to AAE file (plist containing adjustment data)
-
-        Returns:
-            PHAdjustmentData object or None if aae_path is None or file doesn't exist
-
-        The AAE file is a plist with the following keys:
-        - adjustmentFormatIdentifier: identifier for the adjustment format
-        - adjustmentFormatVersion: version string for the format
-        - adjustmentData: base64-encoded binary data
-        - adjustmentEditorBundleID: bundle ID of the editor (e.g., com.apple.Photos)
-        - adjustmentRenderTypes: integer bitmask of render types
-        - adjustmentTimestamp: date of the adjustment
-        - adjustmentBaseVersion: integer base version
-        """
-
-        if not aae_path:
-            return None
-
-        aae_path = pathlib.Path(aae_path)
-        if not aae_path.is_file():
-            return None
-
-        try:
-            with open(aae_path, "rb") as f:
-                aae_dict = plistlib.load(f)
-
-            plist_data = Foundation.NSDictionary.dictionaryWithContentsOfFile_(str(aae_path))
-            # Extract the required fields
-            format_identifier = aae_dict.get(
-                "adjustmentFormatIdentifier", "com.apple.photo"
-            )
-            format_version = aae_dict.get("adjustmentFormatVersion", "1.0")
-            adjustment_data_str = aae_dict.get("adjustmentData", b"")
-            adjustment_editor_bundle_id = aae_dict.get("adjustmentEditorBundleID", "")
-            ns_data = plist_data.valueForKey_("adjustmentData")
-            render_type = plist_data.valueForKey_("adjustmentRenderTypes")
-            ns_data = Foundation.NSData.dataWithBytes_length_(b"Hello",len(b"Hello"))
-            # Create PHAdjustmentData
-            adjustment_data = Photos.PHAdjustmentData.alloc().initWithFormatIdentifier_formatVersion_data_(
-                format_identifier, format_version, ns_data
-            )
-
-            # adjustment_data.setEditorBundleID_(adjustment_editor_bundle_id)
-            adjustment_data.setEditorBundleID_("com.rhettbull.photokit")
-            adjustment_data.setAdjustmentRenderTypes_(render_type)
-            base_version = plist_data.valueForKey_("adjustmentBaseVersion")
-            adjustment_data.setBaseVersion_(base_version)
-
-            return adjustment_data
-
-        except Exception as e:
-            # If we can't parse the AAE file, return None
-            # The caller will create a minimal PHAdjustmentData
-            logger.error(f"Failed to parse AAE file: {e}")
-            return None
-
-    def _create_minimal_adjustment_data(self) -> Photos.PHAdjustmentData:
-        """Create a minimal PHAdjustmentData for when AAE file is not available.
-
-        Returns:
-            PHAdjustmentData with minimal data
-        """
-        format_identifier = "com.photokit.edit"
-        format_version = "1.0"
-        adjustment_data_content = b"edited"
-
-        adjustment_data = Photos.PHAdjustmentData.alloc().initWithFormatIdentifier_formatVersion_data_(
-            format_identifier,
-            format_version,
-            Foundation.NSData.dataWithBytes_length_(
-                adjustment_data_content, len(adjustment_data_content)
-            ),
-        )
-
-        return adjustment_data
-
     def add_photo_with_adjustments(
         self,
         original_path: str | pathlib.Path | os.PathLike,
@@ -946,7 +866,14 @@ class PhotoLibrary:
         Raises:
             FileNotFoundError if original_path or edited_path does not exist
             PhotoKitImportError if unable to import image
-            PhotoKitChangeError if unable to apply edit (see note below)
+            PhotoKitChangeError if unable to apply edit
+
+        Note:
+            Photos will not accept an edit from another process that uses its own
+            adjustment format identifier ("com.apple.photo"). Adjustment data read from an
+            AAE file with this identifier is stored under a photokit-specific identifier
+            instead. The adjustment data is preserved but Photos treats the edit as coming
+            from another app and cannot re-open Apple's adjustments in its editor.
 
         Example:
             # Add photo with AAE file
@@ -972,9 +899,9 @@ class PhotoLibrary:
 
         asset = self.add_photo(original_path)
 
-        adjustment_data = self._adjustment_data_from_aae(aae_path)
+        adjustment_data = adjustment_data_from_aae(aae_path)
         if not adjustment_data:
-            adjustment_data = self._create_minimal_adjustment_data()
+            adjustment_data = create_minimal_adjustment_data()
         edited_abs_path = (
             edited_path.absolute() if not edited_path.is_absolute() else edited_path
         )
@@ -991,7 +918,7 @@ class PhotoLibrary:
     def add_video_with_adjustments(
         self,
         original_path: str | pathlib.Path | os.PathLike,
-        edited_path: str | pathlib.Path | os.PathLike,
+        edited_path: str | pathlib.Path | os.PathLike | None = None,
         aae_path: str | pathlib.Path | os.PathLike | None = None,
     ) -> VideoAsset:
         """Add a video with adjustments to the Photos library.
@@ -1001,7 +928,8 @@ class PhotoLibrary:
 
         Args:
             original_path: path to original (unedited) video file
-            edited_path: path to edited/rendered video file
+            edited_path: optional path to edited/rendered video file
+                     If not provided, the original video is used as the rendered version
             aae_path: optional path to AAE file containing adjustment data
                      If not provided, a minimal adjustment data will be created
 
@@ -1011,7 +939,7 @@ class PhotoLibrary:
         Raises:
             FileNotFoundError if original_path or edited_path does not exist
             PhotoKitImportError if unable to import video
-            PhotoKitError if unable to apply edit
+            PhotoKitChangeError if unable to apply edit (see add_photo_with_adjustments() for note on AAE files)
 
         Example:
             # Add video with AAE file
@@ -1028,7 +956,7 @@ class PhotoLibrary:
             )
         """
         original_path = pathlib.Path(original_path)
-        edited_path = pathlib.Path(edited_path)
+        edited_path = pathlib.Path(edited_path) if edited_path else original_path
 
         if not original_path.is_file():
             raise FileNotFoundError(f"Could not find original file {original_path}")
@@ -1039,9 +967,9 @@ class PhotoLibrary:
         asset = self.add_video(original_path)
 
         # Parse AAE file or create minimal adjustment data
-        adjustment_data = self._adjustment_data_from_aae(aae_path)
+        adjustment_data = adjustment_data_from_aae(aae_path)
         if not adjustment_data:
-            adjustment_data = self._create_minimal_adjustment_data()
+            adjustment_data = create_minimal_adjustment_data()
 
         # Apply the edit with adjustment data
         def apply_edit_callback(original_file_path, existing_adjustment_data):
@@ -1082,7 +1010,7 @@ class PhotoLibrary:
         Raises:
             FileNotFoundError if any path does not exist
             PhotoKitImportError if unable to import live photo
-            PhotoKitError if unable to apply edit
+            PhotoKitChangeError if unable to apply edit (see add_photo_with_adjustments() for note on AAE files)
 
         Example:
             # Add live photo with AAE file
@@ -1128,9 +1056,9 @@ class PhotoLibrary:
         asset = self.add_live_photo(original_photo_path, original_video_path)
 
         # ggParse AAE file or create minimal adjustment data
-        adjustment_data = self._adjustment_data_from_aae(aae_path)
+        adjustment_data = adjustment_data_from_aae(aae_path)
         if not adjustment_data:
-            adjustment_data = self._create_minimal_adjustment_data()
+            adjustment_data = create_minimal_adjustment_data()
 
         # For live photos, we need to handle both photo and video
         # The edit callback receives the photo path
@@ -1171,7 +1099,7 @@ class PhotoLibrary:
         Raises:
             FileNotFoundError if any path does not exist
             PhotoKitImportError if unable to import photo
-            PhotoKitError if unable to apply edit
+            PhotoKitChangeError if unable to apply edit (see add_photo_with_adjustments() for note on AAE files)
 
         Example:
             # Add RAW+JPEG with AAE file
@@ -1208,9 +1136,9 @@ class PhotoLibrary:
         asset = self.add_raw_pair_photo(original_raw_path, original_jpeg_path)
 
         # Parse AAE file or create minimal adjustment data
-        adjustment_data = self._adjustment_data_from_aae(aae_path)
+        adjustment_data = adjustment_data_from_aae(aae_path)
         if not adjustment_data:
-            adjustment_data = self._create_minimal_adjustment_data()
+            adjustment_data = create_minimal_adjustment_data()
 
         # Apply the edit with adjustment data
         def apply_edit_callback(original_file_path, existing_adjustment_data):
@@ -1469,11 +1397,8 @@ class PhotoLibrary:
         with objc.autorelease_pool():
             if PhotoLibrary.multi_library_mode():
                 fetch_object = NSString.stringWithString_("Album")
-                if (
-                    fetch_result
-                    := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                        uuids, fetch_object
-                    )
+                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                    uuids, fetch_object
                 ):
                     return [
                         Album(self, fetch_result.objectAtIndex_(idx))
@@ -1507,11 +1432,8 @@ class PhotoLibrary:
         with objc.autorelease_pool():
             if PhotoLibrary.multi_library_mode():
                 fetch_object = NSString.stringWithString_("Asset")
-                if (
-                    fetch_result
-                    := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
-                        uuids, fetch_object
-                    )
+                if fetch_result := self._phphotolibrary.fetchPHObjectsForUUIDs_entityName_(
+                    uuids, fetch_object
                 ):
                     return [
                         self._asset_factory(fetch_result.objectAtIndex_(idx))
