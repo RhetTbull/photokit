@@ -24,12 +24,16 @@ def my_edit_callback(original_path, adjustment_data):
     print(f"Adjustment data: {adjustment_data}")
 
     # Create a CIImage from the file (Core Image is built on CoreGraphics)
+    # Photos expects the rendered image to be upright so apply the EXIF orientation
     image_url = Foundation.NSURL.fileURLWithPath_(original_path)
     ci_image = Quartz.CIImage.imageWithContentsOfURL_(image_url)
 
     if not ci_image:
         print("Failed to load image")
         return None
+
+    orientation = ci_image.properties().get("Orientation", 1)
+    ci_image = ci_image.imageByApplyingCGOrientation_(orientation)
 
     # Apply grayscale filter using CoreImage (built on CoreGraphics)
     # Create a color monochrome filter (black and white)
