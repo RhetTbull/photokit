@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import logging
 import os
 import pathlib
 import threading
@@ -35,6 +36,7 @@ from .exceptions import (
     PhotoKitTimeoutError,
 )
 from .fileutil import FileUtil
+from .imageconverter import ImageConversionError, ImageConverter
 from .objc_utils import (
     NSDate_to_datetime,
     NSURL_to_path,
@@ -42,11 +44,13 @@ from .objc_utils import (
     path_to_NSURL,
 )
 from .scriptingbridge import photo_set_description
-from .uti import get_preferred_uti_extension
+from .uti import get_preferred_uti_extension, get_uti_for_extension
 from .utils import increment_filename
 
 if TYPE_CHECKING:
     from .photolibrary import PhotoLibrary
+
+logger = logging.getLogger("photokit")
 
 # Maximum seconds to wait for an asynchronous PhotoKit request (image / resource / video
 # data) before raising PhotoKitTimeoutError. These requests set networkAccessAllowed=True,
@@ -95,6 +99,111 @@ def _wait_for_event_or_timeout(event: threading.Event, asset_id: str) -> None:
 # fetchAssetCollectionsContainingAsset:withType:options:
 # TODO: Add reverseLocationData
 # TODO: Move exporter code to separate class/file?
+
+# Indices include self(0) and _cmd(1), so the completion block is argument 3.
+# Block arguments: 0 is block context (^v), then actual arguments start at 1.
+objc.registerMetaDataForSelector(
+    b"PHAsset",
+    b"requestContentEditingInputWithOptions:completionHandler:",
+    {
+        "arguments": {
+            3: {  # completionHandler:
+                "callable": {
+                    "retval": {"type": b"v"},  # void return
+                    "arguments": {
+                        0: {"type": b"^v"},  # block context
+                        1: {"type": b"@"},  # PHContentEditingInput*
+                        2: {"type": b"@"},  # NSDictionary*
+                    },
+                }
+            }
+        }
+    },
+)
+
+
+def _normalized_suffix(path: str | pathlib.Path) -> str:
+    """Return lower case file suffix without leading '.', with .jpg normalized to jpeg"""
+    suffix = pathlib.Path(path).suffix.lower().lstrip(".")
+    return "jpeg" if suffix == "jpg" else suffix
+
+
+def _write_rendered_content(
+    output: Photos.PHContentEditingOutput,
+    edited_path: str | pathlib.Path,
+    is_photo: bool,
+):
+    """Write the edited file to the rendered content location for a PHContentEditingOutput
+
+    On macOS 14+, if the edited file's type is one of the output's supported rendered
+    content types, it is copied as-is to the URL for that type. Otherwise it is copied to
+    the default renderedContentURL, converting photos to JPEG if the types don't match.
+
+    Args:
+        output: PHContentEditingOutput to write rendered content for
+        edited_path: path to the edited file
+        is_photo: True if the asset is a photo, False if a video
+
+    Raises:
+        PhotoKitChangeError if rendered content URL cannot be obtained or file cannot be converted
+    """
+    edited_path = pathlib.Path(edited_path)
+    if output.respondsToSelector_("supportedRenderedContentTypes"):
+        edited_uti = get_uti_for_extension(edited_path.suffix)
+        for content_type in output.supportedRenderedContentTypes() or []:
+            if content_type.identifier() == edited_uti:
+                rendered_url, error = output.renderedContentURLForType_error_(
+                    content_type, None
+                )
+                if rendered_url is None:
+                    raise PhotoKitChangeError(
+                        f"Could not get rendered content URL for {edited_uti}: {error}"
+                    )
+                FileUtil.copy(edited_path, NSURL_to_path(rendered_url))
+                return
+
+    rendered_path = NSURL_to_path(output.renderedContentURL())
+    if _normalized_suffix(edited_path) == _normalized_suffix(rendered_path):
+        FileUtil.copy(edited_path, rendered_path)
+    elif is_photo and _normalized_suffix(rendered_path) == "jpeg":
+        try:
+            ImageConverter().write_jpeg(edited_path, rendered_path)
+        except ImageConversionError as e:
+            raise PhotoKitChangeError(
+                f"Could not convert {edited_path} to JPEG for rendered content: {e}"
+            ) from e
+    else:
+        logger.warning(
+            f"Edited file type {edited_path.suffix} does not match rendered content type "
+            f"{pathlib.Path(rendered_path).suffix}; copying without conversion"
+        )
+        FileUtil.copy(edited_path, rendered_path)
+
+
+def _write_rendered_video_complement(
+    output: Photos.PHContentEditingOutput, edited_video_path: str | pathlib.Path
+):
+    """Write the edited paired video of a Live Photo to the rendered video complement location
+
+    Uses the private, undocumented PHContentEditingOutput.renderedVideoComplementContentURL
+
+    Args:
+        output: PHContentEditingOutput to write rendered content for
+        edited_video_path: path to the edited paired video
+
+    Raises:
+        PhotoKitChangeError if the rendered video complement URL cannot be obtained
+    """
+    if not output.respondsToSelector_("renderedVideoComplementContentURL"):
+        raise PhotoKitChangeError(
+            "Editing the video of a Live Photo is not supported on this version of macOS"
+        )
+    rendered_url = output.renderedVideoComplementContentURL()
+    if rendered_url is None:
+        raise PhotoKitChangeError(
+            "Could not get rendered content URL for Live Photo video"
+        )
+    FileUtil.copy(edited_video_path, NSURL_to_path(rendered_url))
 
 
 ### helper classes
@@ -655,23 +764,28 @@ class PhotoAsset(Asset):
             refresh: if True, refresh the asset from the library after performing changes (default is True)
         """
 
-        with objc.autorelease_pool():
-
-            def _change_request_handler():
-                change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
-                    self.phasset
-                )
-                change_request_handler(change_request)
-
-            error = self._library._phphotolibrary.performChangesAndWait_error_(
-                lambda: _change_request_handler(), None
+        def _change_request_handler():
+            change_request = Photos.PHAssetChangeRequest.changeRequestForAsset_(
+                self.phasset
             )
+            change_request_handler(change_request)
 
-            if error:
-                PhotoKitChangeError(f"Error changing asset: {error}")
+        # some versions of pyobjc do not return a tuple
+        result = self._library._phphotolibrary.performChangesAndWait_error_(
+            lambda: _change_request_handler(), None
+        )
+        if isinstance(result, tuple):
+            success, error = result
+        elif isinstance(result, NSError):
+            success, error = False, result
+        else:
+            success, error = bool(result), None
 
-            if refresh:
-                self._refresh()
+        if not success:
+            raise PhotoKitChangeError(f"Error changing asset: {error}")
+
+        if refresh:
+            self._refresh()
 
     # def _perform_changes(
     #     self,
@@ -803,6 +917,170 @@ class PhotoAsset(Asset):
                     FileUtil.copy(path, output_file)
 
                 return [str(output_file)]
+
+    def edit(
+        self,
+        callback: Callable[
+            [str, Photos.PHAdjustmentData],
+            tuple[str, Photos.PHAdjustmentData]
+            | tuple[str, Photos.PHAdjustmentData, str]
+            | None,
+        ],
+        can_handle_adjustment_data: bool = False,
+    ):
+        """Edit the asset (photo or video) using a user-provided callback function.
+
+        This method works for both photos and videos. For photos, use Core Image filters
+        (see examples/edit_photo_grayscale.py). For videos, use AVFoundation with Core Image
+        filters applied to each frame (see examples/edit_video_grayscale.py).
+
+        Args:
+            callback: A callable that takes (original_path: str, adjustment_data: PHAdjustmentData)
+                     and returns (edited_path: str, new_adjustment_data: PHAdjustmentData) or None.
+                     If None is returned, the edit operation is cancelled and no changes are made.
+                     The callback should process the asset file at original_path and save the
+                     edited version to edited_path, returning the new adjustment data.
+                     For videos, original_path points to the video file (.mov, .mp4, etc).
+                     For photos, original_path points to the image file (.heic, .jpg, etc).
+                     For Live Photos, original_path points to the still image; the callback may
+                     optionally return a third value, the path to the edited paired video
+                     (edited_path, new_adjustment_data, edited_video_path). If no edited video is
+                     returned, Photos saves the edited version as a still photo and the asset is
+                     no longer a Live Photo; to keep it Live without changing the motion, return
+                     the original paired video.
+                     An edited photo is converted to JPEG if Photos does not accept its format
+                     as rendered content.
+            can_handle_adjustment_data: bool, if True, indicates that the callback can handle
+                     adjustment data. Default is False, as most adjustment data is proprietary to Apple.
+                     If True, adjustment_data passed to the callback is the asset's current
+                     adjustment data (or None if the asset has not been edited).
+
+        Raises:
+            PhotoKitChangeError: If the edit operation fails.
+            ValueError: If the asset type is not supported for editing.
+
+        Examples:
+            # Edit a photo (grayscale)
+            photo.edit(lambda path, adj: (apply_grayscale(path), create_adjustment_data()))
+
+            # Edit a video (sepia filter)
+            video.edit(lambda path, adj: (apply_sepia_video(path), create_adjustment_data()))
+
+            # Cancel edit
+            photo.edit(lambda path, adj: None)
+        """
+        with objc.autorelease_pool():
+            # Request content editing input
+            options = Photos.PHContentEditingInputRequestOptions.alloc().init()
+            options.setNetworkAccessAllowed_(True)
+            if can_handle_adjustment_data:
+                options.setCanHandleAdjustmentData_(lambda adjustment_data: True)
+
+            editing_input = [None, None]
+            completed = [False]
+
+            def completion_handler(contentEditingInput, info):
+                editing_input[0] = contentEditingInput
+                editing_input[1] = info
+                completed[0] = True
+
+            self.phasset.requestContentEditingInputWithOptions_completionHandler_(
+                options, completion_handler
+            )
+
+            # Wait for completion by running the runloop
+            # PhotoKit calls the completion handler on the main queue, which requires
+            # the runloop to be running to process the callback
+            timeout = 30.0
+            start_time = time.time()
+            while not completed[0] and (time.time() - start_time) < timeout:
+                Foundation.NSRunLoop.currentRunLoop().runMode_beforeDate_(
+                    Foundation.NSDefaultRunLoopMode,
+                    Foundation.NSDate.dateWithTimeIntervalSinceNow_(0.1),
+                )
+
+            if not completed[0]:
+                raise PhotoKitChangeError(
+                    "Timeout waiting for content editing input request"
+                )
+
+            editing_input = editing_input[0]
+            if not editing_input:
+                raise PhotoKitChangeError("Failed to get content editing input")
+
+            # Get the appropriate file path and adjustment data
+            original_path = None
+            adjustment_data = editing_input.adjustmentData()
+
+            if self.live or self.isphoto:
+                url = editing_input.fullSizeImageURL()
+                if url:
+                    original_path = NSURL_to_path(url)
+            elif self.ismovie:
+                url = editing_input.videoURL()
+                if url:
+                    original_path = NSURL_to_path(url)
+            else:
+                raise ValueError(
+                    f"Editing not supported for asset type: {self.media_type}"
+                )
+
+            if not original_path or not pathlib.Path(original_path).exists():
+                raise PhotoKitChangeError(
+                    "Could not get original file path for editing"
+                )
+
+            # Call the user callback
+            result = callback(original_path, adjustment_data)
+
+            if result is None:
+                # Edit cancelled
+                return
+
+            edited_path, new_adjustment_data, *rest = result
+            edited_video_path = rest[0] if rest else None
+
+            if not pathlib.Path(edited_path).exists():
+                raise ValueError("Callback must return a valid path to the edited file")
+            if edited_video_path is not None:
+                if not self.live:
+                    raise ValueError(
+                        "Callback may only return an edited video for Live Photos"
+                    )
+                if not pathlib.Path(edited_video_path).exists():
+                    raise ValueError(
+                        "Callback must return a valid path to the edited video"
+                    )
+
+            # Write the rendered content before performing the change;
+            # PhotoKit expects the file to exist when the change block runs
+            output = Photos.PHContentEditingOutput.alloc().initWithContentEditingInput_(
+                editing_input
+            )
+            _write_rendered_content(output, edited_path, is_photo=not self.ismovie)
+            if edited_video_path is not None:
+                _write_rendered_video_complement(output, edited_video_path)
+            output.setAdjustmentData_(new_adjustment_data)
+
+            def change_request_handler(change_request: Photos.PHAssetChangeRequest):
+                change_request.setContentEditingOutput_(output)
+
+            self._perform_changes(change_request_handler)
+
+    def revert(self):
+        """Revert the asset to its original version, discarding all edits.
+
+        Does nothing if the asset has not been edited.
+
+        Raises:
+            PhotoKitChangeError: If the revert operation fails.
+        """
+        if not self.hasadjustments:
+            return
+
+        self._perform_changes(
+            lambda change_request: change_request.revertAssetContentToOriginal()
+        )
 
     def _request_image_data(self, version=PHImageRequestOptionsVersionOriginal):
         """Request image data and metadata for self._phasset
@@ -1022,7 +1300,12 @@ class _SlowMoVideoExporter(NSObject):
 
 
 class VideoAsset(PhotoAsset):
-    """PhotoKit PHAsset representation of video asset"""
+    """PhotoKit PHAsset representation of video asset
+
+    Inherits the edit() method from PhotoAsset for editing videos.
+    Use AVFoundation and Core Image filters to process video frames.
+    See examples/edit_video_grayscale.py for an example of applying filters to videos.
+    """
 
     # TODO: doesn't work for slow-mo videos
     # see https://stackoverflow.com/questions/26152396/how-to-access-nsdata-nsurl-of-slow-motion-videos-using-photokit

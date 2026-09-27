@@ -19,3 +19,4 @@ cov.xml
 site/
 pyrightconfig.json
 
+.envrc

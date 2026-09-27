@@ -9,16 +9,17 @@ import os
 import pathlib
 import plistlib
 import threading
-import urllib.parse
-from typing import Any, Callable
+from typing import Callable
 
 import CoreFoundation
+import Foundation
 import objc
 import Photos
 from Foundation import NSURL, NSString
 from ScriptingBridge import SBApplication
 from wurlitzer import pipes
 
+from .aae import adjustment_data_from_aae, create_minimal_adjustment_data
 from .album import Album
 from .asset import Asset, LivePhotoAsset, PhotoAsset, VideoAsset
 from .constants import PHAccessLevelAddOnly, PHAccessLevelReadWrite
@@ -272,7 +273,9 @@ class PhotoLibrary:
         return bool(auth_status)
 
     @staticmethod
-    def _create_library_old(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+    def _create_library_old(
+        library_path: str | pathlib.Path | os.PathLike,
+    ) -> PhotoLibrary:
         """Create a new Photos library at library_path
 
         Args:
@@ -314,7 +317,9 @@ class PhotoLibrary:
                 )
 
     @staticmethod
-    def _create_library_does_not_work(library_path: str | pathlib.Path | os.PathLike) -> PhotoLibrary:
+    def _create_library_does_not_work(
+        library_path: str | pathlib.Path | os.PathLike,
+    ) -> PhotoLibrary:
         """Create a new Photos library at library_path
 
         Args:
@@ -342,13 +347,15 @@ class PhotoLibrary:
 
         # Create library creation options for a user library
         # The PHPhotoLibraryCreationOptions class provides factory methods for different library types
-        creation_options = Photos.PHPhotoLibraryCreationOptions.creationOptionsForUserLibrary()
+        creation_options = (
+            Photos.PHPhotoLibraryCreationOptions.creationOptionsForUserLibrary()
+        )
         creation_options.setLibraryURL_(NSURL.fileURLWithPath_(library_path))
 
         phm = Photos.PHPhotoLibraryManager.alloc().init()
-        print(f"{phm=}")
-        success, error = phm.createPhotoLibraryWithURL_options_error_(NSURL.fileURLWithPath_(library_path), creation_options, None)
-        print(f"{success=}, {error=}")
+        success, error = phm.createPhotoLibraryWithURL_options_error_(
+            NSURL.fileURLWithPath_(library_path), creation_options, None
+        )
         if not success:
             raise PhotoKitCreateLibraryError(
                 f"Unable to create library at {library_path}: {error if error else 'Unknown error'}"
@@ -390,7 +397,6 @@ class PhotoLibrary:
             # options.setIncludeHiddenAssets_(True)
             # TODO: to access hidden photos, Photos > Settings > General > Privacy > Use Touch ID or Password
             # must be turned off
-            # print(options.includeHiddenAssets())
             assets = Photos.PHAsset.fetchAssetsWithOptions_(options)
             asset_list = [assets.objectAtIndex_(idx) for idx in range(assets.count())]
             return [self._asset_factory(asset) for asset in asset_list]
@@ -836,6 +842,318 @@ class PhotoLibrary:
             event.wait()
 
             return self.asset(asset_uuid)
+
+    def add_photo_with_adjustments(
+        self,
+        original_path: str | pathlib.Path | os.PathLike,
+        edited_path: str | pathlib.Path | os.PathLike,
+        aae_path: str | pathlib.Path | os.PathLike | None = None,
+    ) -> PhotoAsset:
+        """Add a photo with adjustments to the Photos library.
+
+        This adds the original photo to the library, then applies an edit with
+        the rendered version and adjustment data in one operation.
+
+        Args:
+            original_path: path to original (unedited) image file
+            edited_path: path to edited/rendered image file
+            aae_path: optional path to AAE file containing adjustment data
+                     If not provided, a minimal adjustment data will be created
+
+        Returns:
+            PhotoAsset object for added photo with adjustments
+
+        Raises:
+            FileNotFoundError if original_path or edited_path does not exist
+            PhotoKitImportError if unable to import image
+            PhotoKitChangeError if unable to apply edit
+
+        Note:
+            Photos will not accept an edit from another process that uses its own
+            adjustment format identifier ("com.apple.photo"). Adjustment data read from an
+            AAE file with this identifier is stored under a photokit-specific identifier
+            instead. The adjustment data is preserved but Photos treats the edit as coming
+            from another app and cannot re-open Apple's adjustments in its editor.
+
+        Example:
+            # Add photo with AAE file
+            photo = pl.add_photo_with_adjustments(
+                "IMG_5474.HEIC",
+                "IMG_5474_edited.heic",
+                "IMG_5474.AAE"
+            )
+
+            # Add photo without AAE file (creates minimal adjustment data)
+            photo = pl.add_photo_with_adjustments(
+                "original.jpg",
+                "edited.jpg"
+            )
+        """
+        original_path = pathlib.Path(original_path)
+        edited_path = pathlib.Path(edited_path)
+
+        if not original_path.is_file():
+            raise FileNotFoundError(f"Could not find original file {original_path}")
+        if not edited_path.is_file():
+            raise FileNotFoundError(f"Could not find edited file {edited_path}")
+
+        asset = self.add_photo(original_path)
+
+        adjustment_data = adjustment_data_from_aae(aae_path)
+        if not adjustment_data:
+            adjustment_data = create_minimal_adjustment_data()
+        edited_abs_path = (
+            edited_path.absolute() if not edited_path.is_absolute() else edited_path
+        )
+
+        # Apply the edit with adjustment data
+        def apply_edit_callback(original_file_path, existing_adjustment_data):
+            # Convert to absolute path if needed
+
+            return (str(edited_abs_path), adjustment_data)
+
+        asset.edit(apply_edit_callback)
+        return asset
+
+    def add_video_with_adjustments(
+        self,
+        original_path: str | pathlib.Path | os.PathLike,
+        edited_path: str | pathlib.Path | os.PathLike | None = None,
+        aae_path: str | pathlib.Path | os.PathLike | None = None,
+    ) -> VideoAsset:
+        """Add a video with adjustments to the Photos library.
+
+        This adds the original video to the library, then applies an edit with
+        the rendered version and adjustment data in one operation.
+
+        Args:
+            original_path: path to original (unedited) video file
+            edited_path: optional path to edited/rendered video file
+                     If not provided, the original video is used as the rendered version
+            aae_path: optional path to AAE file containing adjustment data
+                     If not provided, a minimal adjustment data will be created
+
+        Returns:
+            VideoAsset object for added video with adjustments
+
+        Raises:
+            FileNotFoundError if original_path or edited_path does not exist
+            PhotoKitImportError if unable to import video
+            PhotoKitChangeError if unable to apply edit (see add_photo_with_adjustments() for note on AAE files)
+
+        Example:
+            # Add video with AAE file
+            video = pl.add_video_with_adjustments(
+                "IMG_5474.mov",
+                "IMG_5474_edited.mov",
+                "IMG_5474.AAE"
+            )
+
+            # Add video without AAE file
+            video = pl.add_video_with_adjustments(
+                "original.mov",
+                "edited.mov"
+            )
+        """
+        original_path = pathlib.Path(original_path)
+        edited_path = pathlib.Path(edited_path) if edited_path else original_path
+
+        if not original_path.is_file():
+            raise FileNotFoundError(f"Could not find original file {original_path}")
+        if not edited_path.is_file():
+            raise FileNotFoundError(f"Could not find edited file {edited_path}")
+
+        # Add the original video first
+        asset = self.add_video(original_path)
+
+        # Parse AAE file or create minimal adjustment data
+        adjustment_data = adjustment_data_from_aae(aae_path)
+        if not adjustment_data:
+            adjustment_data = create_minimal_adjustment_data()
+
+        # Apply the edit with adjustment data
+        def apply_edit_callback(original_file_path, existing_adjustment_data):
+            # Convert to absolute path if needed
+            edited_abs_path = (
+                edited_path.absolute() if not edited_path.is_absolute() else edited_path
+            )
+            return (str(edited_abs_path), adjustment_data)
+
+        asset.edit(apply_edit_callback)
+
+        return asset
+
+    def add_live_photo_with_adjustments(
+        self,
+        original_photo_path: str | pathlib.Path | os.PathLike,
+        original_video_path: str | pathlib.Path | os.PathLike,
+        edited_photo_path: str | pathlib.Path | os.PathLike,
+        edited_video_path: str | pathlib.Path | os.PathLike | None = None,
+        aae_path: str | pathlib.Path | os.PathLike | None = None,
+    ) -> LivePhotoAsset:
+        """Add a live photo with adjustments to the Photos library.
+
+        This adds the original live photo/video pair to the library, then applies
+        an edit with the rendered versions and adjustment data in one operation.
+
+        Args:
+            original_photo_path: path to original (unedited) photo file
+            original_video_path: path to original (unedited) paired video file
+            edited_photo_path: path to edited/rendered photo file
+            edited_video_path: optional path to edited/rendered paired video file
+                     If not provided, the original paired video is used so the edited
+                     asset remains a Live Photo
+            aae_path: optional path to AAE file containing adjustment data
+                     If not provided, a minimal adjustment data will be created
+
+        Returns:
+            LivePhotoAsset object for added live photo with adjustments
+
+        Raises:
+            FileNotFoundError if any path does not exist
+            PhotoKitImportError if unable to import live photo
+            PhotoKitChangeError if unable to apply edit (see add_photo_with_adjustments() for note on AAE files)
+
+        Example:
+            # Add live photo with AAE file
+            live_photo = pl.add_live_photo_with_adjustments(
+                "IMG_5474.HEIC",
+                "IMG_5474.mov",
+                "IMG_5474_edited.heic",
+                "IMG_5474_edited.mov",
+                "IMG_5474.AAE"
+            )
+
+            # Add live photo without AAE file
+            live_photo = pl.add_live_photo_with_adjustments(
+                "original.heic",
+                "original.mov",
+                "edited.heic",
+                "edited.mov"
+            )
+        """
+        original_photo_path = pathlib.Path(original_photo_path)
+        original_video_path = pathlib.Path(original_video_path)
+        edited_photo_path = pathlib.Path(edited_photo_path)
+        edited_video_path = (
+            pathlib.Path(edited_video_path) if edited_video_path else original_video_path
+        )
+
+        if not original_photo_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find original photo file {original_photo_path}"
+            )
+        if not original_video_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find original video file {original_video_path}"
+            )
+        if not edited_photo_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find edited photo file {edited_photo_path}"
+            )
+        if not edited_video_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find edited video file {edited_video_path}"
+            )
+
+        # Add the original live photo first
+        asset = self.add_live_photo(original_photo_path, original_video_path)
+
+        # Parse AAE file or create minimal adjustment data
+        adjustment_data = adjustment_data_from_aae(aae_path)
+        if not adjustment_data:
+            adjustment_data = create_minimal_adjustment_data()
+
+        # Apply the edit with both the edited still image and paired video;
+        # if only a still image is provided, Photos saves the edit as a still photo
+        def apply_edit_callback(original_file_path, existing_adjustment_data):
+            return (
+                str(edited_photo_path.absolute()),
+                adjustment_data,
+                str(edited_video_path.absolute()),
+            )
+
+        asset.edit(apply_edit_callback)
+
+        return asset
+
+    def add_raw_pair_photo_with_adjustments(
+        self,
+        original_raw_path: str | pathlib.Path | os.PathLike,
+        original_jpeg_path: str | pathlib.Path | os.PathLike,
+        edited_path: str | pathlib.Path | os.PathLike,
+        aae_path: str | pathlib.Path | os.PathLike | None = None,
+    ) -> PhotoAsset:
+        """Add a RAW+JPEG pair with adjustments to the Photos library.
+
+        This adds the original RAW+JPEG pair to the library, then applies an edit
+        with the rendered version and adjustment data in one operation.
+
+        Args:
+            original_raw_path: path to original (unedited) RAW file
+            original_jpeg_path: path to original (unedited) JPEG file
+            edited_path: path to edited/rendered image file
+            aae_path: optional path to AAE file containing adjustment data
+                     If not provided, a minimal adjustment data will be created
+
+        Returns:
+            PhotoAsset object for added RAW+JPEG pair with adjustments
+
+        Raises:
+            FileNotFoundError if any path does not exist
+            PhotoKitImportError if unable to import photo
+            PhotoKitChangeError if unable to apply edit (see add_photo_with_adjustments() for note on AAE files)
+
+        Example:
+            # Add RAW+JPEG with AAE file
+            photo = pl.add_raw_pair_photo_with_adjustments(
+                "IMG_5474.CR2",
+                "IMG_5474.JPG",
+                "IMG_5474_edited.jpg",
+                "IMG_5474.AAE"
+            )
+
+            # Add RAW+JPEG without AAE file
+            photo = pl.add_raw_pair_photo_with_adjustments(
+                "original.CR2",
+                "original.jpg",
+                "edited.jpg"
+            )
+        """
+        original_raw_path = pathlib.Path(original_raw_path)
+        original_jpeg_path = pathlib.Path(original_jpeg_path)
+        edited_path = pathlib.Path(edited_path)
+
+        if not original_raw_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find original RAW file {original_raw_path}"
+            )
+        if not original_jpeg_path.is_file():
+            raise FileNotFoundError(
+                f"Could not find original JPEG file {original_jpeg_path}"
+            )
+        if not edited_path.is_file():
+            raise FileNotFoundError(f"Could not find edited file {edited_path}")
+
+        # Add the original RAW+JPEG pair first
+        asset = self.add_raw_pair_photo(original_raw_path, original_jpeg_path)
+
+        # Parse AAE file or create minimal adjustment data
+        adjustment_data = adjustment_data_from_aae(aae_path)
+        if not adjustment_data:
+            adjustment_data = create_minimal_adjustment_data()
+
+        # Apply the edit with adjustment data
+        def apply_edit_callback(original_file_path, existing_adjustment_data):
+            # Convert to absolute path if needed
+            edited_abs_path = (
+                edited_path.absolute() if not edited_path.is_absolute() else edited_path
+            )
+            return (str(edited_abs_path), adjustment_data)
+
+        asset.edit(apply_edit_callback)
+
+        return asset
 
     def create_keyword(self, keyword: str) -> Photos.PHKeyword:
         """Add a new keyword to the Photos library.

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import pathlib
 import sqlite3
-
-import datetime
 
 logger = logging.getLogger("photokit")
 
